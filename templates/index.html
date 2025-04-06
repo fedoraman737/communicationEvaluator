@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}Communication Evaluator - Home{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-body text-center">
+                <h1 class="display-4 mb-4">Communication Evaluator</h1>
+                <p class="lead">Enhance your customer communication skills with AI-powered feedback</p>
+                <hr>
+                <div class="mt-4">
+                    <h2>How It Works</h2>
+                    <div class="row mt-4">
+                        <div class="col-md-4">
+                            <div class="card mb-3 h-100">
+                                <div class="card-body">
+                                    <h5 class="card-title">1. Select a Scenario</h5>
+                                    <p class="card-text">Choose from a variety of customer service scenarios</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card mb-3 h-100">
+                                <div class="card-body">
+                                    <h5 class="card-title">2. Provide Your Response</h5>
+                                    <p class="card-text">Write your best customer service response</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card mb-3 h-100">
+                                <div class="card-body">
+                                    <h5 class="card-title">3. Get AI Feedback</h5>
+                                    <p class="card-text">Receive detailed evaluation and improvement suggestions</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <a href="{{ url_for('scenarios') }}" class="btn btn-primary btn-lg">Get Started</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

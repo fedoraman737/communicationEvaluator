@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}Communication Evaluator - Scenarios{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h1 class="mb-4">Communication Scenarios</h1>
+        <p class="lead">Select a scenario below to practice your communication skills.</p>
+        
+        <div class="row mt-4">
+            {% for scenario in scenarios %}
+            <div class="col-md-4 mb-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-header bg-primary text-white">
+                        {{ scenario.category }}
+                    </div>
+                    <div class="card-body">
+                        <h5 class="card-title">{{ scenario.title }}</h5>
+                        <p class="card-text">{{ scenario.description }}</p>
+                    </div>
+                    <div class="card-footer">
+                        <a href="{{ url_for('scenario_detail', scenario_id=scenario.id) }}" class="btn btn-primary">Respond to Scenario</a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %} 

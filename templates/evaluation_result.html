@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Evaluation Results - Communication Evaluator{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <h1 class="mb-4">Communication Evaluation</h1>
+        
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-primary text-white">
+                <h2 class="mb-0 h5">Overall Score: {{ evaluation.overall_score }}/10</h2>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-4">
+                    <div class="text-center">
+                        <div class="display-6">{{ evaluation.empathy_score }}</div>
+                        <div>Empathy</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="display-6">{{ evaluation.positioning_score }}</div>
+                        <div>Positioning</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="display-6">{{ evaluation.persuasion_score }}</div>
+                        <div>Persuasion</div>
+                    </div>
+                </div>
+                
+                <div class="progress mb-2" style="height: 5px;">
+                    <div class="progress-bar" role="progressbar" style="width: {{ evaluation.overall_score * 10 }}%"></div>
+                </div>
+                
+                <p class="lead mt-4">{{ evaluation.feedback }}</p>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-6 mb-4">
+                <div class="card h-100 shadow-sm border-success">
+                    <div class="card-header bg-success text-white">
+                        <h3 class="h5 mb-0">Strengths</h3>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-group list-group-flush">
+                            {% for strength in evaluation.strengths %}
+                                <li class="list-group-item">{{ strength }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 mb-4">
+                <div class="card h-100 shadow-sm border-warning">
+                    <div class="card-header bg-warning text-dark">
+                        <h3 class="h5 mb-0">Areas for Improvement</h3>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-group list-group-flush">
+                            {% for area in evaluation.areas_for_improvement %}
+                                <li class="list-group-item">{{ area }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+            <a href="{{ url_for('scenarios') }}" class="btn btn-primary">Try Another Scenario</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Chart for score visualization could be added here with a library like Chart.js
+</script>
+{% endblock %} 

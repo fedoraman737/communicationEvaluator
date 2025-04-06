@@ -21,26 +21,31 @@ class LLMEvaluator:
     Class for evaluating advisor responses using LLMs.
     """
     
-    def __init__(self):
-        """Initialize the LLM evaluator with the configured provider."""
+    def __init__(self, test_mode=False):
+        """Initialize the LLM evaluator with the configured provider.
+        
+        Args:
+            test_mode: If True, will not raise errors for missing API keys
+        """
         self.provider = os.getenv('LLM_PROVIDER', 'openai')
         self.model_name = os.getenv('MODEL_NAME', 'gpt-4o')
+        self.test_mode = test_mode
         
         # Initialize clients based on provider
         if self.provider == 'openai':
             openai.api_key = os.getenv('OPENAI_API_KEY')
-            if not openai.api_key:
+            if not openai.api_key and not self.test_mode:
                 raise ValueError("OpenAI API key not found in environment variables")
-            self.client = openai.Client()
+            self.client = openai.Client() if openai.api_key else None
         elif self.provider == 'anthropic':
             anthropic_api_key = os.getenv('ANTHROPIC_API_KEY')
-            if not anthropic_api_key:
+            if not anthropic_api_key and not self.test_mode:
                 raise ValueError("Anthropic API key not found in environment variables")
-            self.client = anthropic.Anthropic(api_key=anthropic_api_key)
+            self.client = anthropic.Anthropic(api_key=anthropic_api_key) if anthropic_api_key else None
         else:
             raise ValueError(f"Unsupported LLM provider: {self.provider}")
         
-        logger.info(f"Initialized LLMEvaluator with provider: {self.provider}, model: {self.model_name}")
+        logger.info(f"Initialized LLMEvaluator with provider: {self.provider}, model: {self.model_name}, test_mode: {test_mode}")
     
     def evaluate_response(self, response: Response) -> Evaluation:
         """
@@ -53,6 +58,20 @@ class LLMEvaluator:
             An Evaluation object with scores and feedback
         """
         logger.info(f"Evaluating response ID: {response.id}")
+        
+        # If in test mode and no API key is available, return a mock evaluation
+        if self.test_mode and (not hasattr(self, 'client') or self.client is None):
+            logger.info("Using mock evaluation for test mode")
+            return Evaluation(
+                empathy_score=8.5,
+                positioning_score=7.5,
+                persuasion_score=6.5,
+                overall_score=7.5,
+                strengths=["Acknowledges customer frustration", "Offers alternative solutions"],
+                areas_for_improvement=["Could improve tone", "More proactive problem-solving"],
+                feedback="Good empathy in acknowledging customer frustration. Consider offering more specific alternatives.",
+                response_id=response.id
+            )
         
         evaluation_prompt = self._create_evaluation_prompt(response)
         

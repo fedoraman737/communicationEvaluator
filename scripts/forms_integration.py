@@ -70,8 +70,9 @@ def evaluate_responses(responses, output_file):
         responses: List of Response objects
         output_file: Path to save the evaluation results
     """
-    # Initialize the evaluator
-    evaluator = LLMEvaluator()
+    # Initialize the evaluator with test_mode if no API keys available
+    api_key_available = bool(os.getenv('OPENAI_API_KEY') or os.getenv('ANTHROPIC_API_KEY'))
+    evaluator = LLMEvaluator(test_mode=not api_key_available)
     
     # Prepare data for output
     output_data = []

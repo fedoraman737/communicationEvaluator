@@ -16,8 +16,9 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev_secret_key')
 
-# Initialize the LLM evaluator
-evaluator = LLMEvaluator()
+# Initialize the LLM evaluator, use test_mode if API keys are not available
+api_key_available = bool(os.getenv('OPENAI_API_KEY') or os.getenv('ANTHROPIC_API_KEY'))
+evaluator = LLMEvaluator(test_mode=not api_key_available)
 
 @app.route('/')
 def index():

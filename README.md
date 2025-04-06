@@ -59,4 +59,5 @@ Configuration is managed through environment variables (see `.env.example`):
 
 ## Version History
 - v1.2: Current development version
+- v1.1: Correction to build errors
 - v1.0: Initial release with basic evaluation functionality

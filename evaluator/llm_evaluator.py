@@ -16,6 +16,9 @@ logger = logging.getLogger(__name__)
 # Load environment variables
 load_dotenv()
 
+#TODO: Implement batch processing of responses via Anthropic batch processing API
+#TODO: Ensure that there is a way to track the status of the batch processing
+
 class LLMEvaluator:
     """
     Class for evaluating advisor responses using LLMs.
@@ -28,7 +31,11 @@ class LLMEvaluator:
             test_mode: If True, will not raise errors for missing API keys
         """
         self.provider = os.getenv('LLM_PROVIDER', 'openai')
-        self.model_name = os.getenv('MODEL_NAME', 'gpt-4o')
+        # Default model names based on provider
+        if self.provider == 'anthropic':
+            self.model_name = os.getenv('MODEL_NAME', 'claude-3-7-sonnet-20250219')
+        else:
+            self.model_name = os.getenv('MODEL_NAME', 'gpt-4o')
         self.test_mode = test_mode
         
         # Initialize clients based on provider
@@ -184,6 +191,7 @@ Format your response as a JSON object with the following keys: empathy_score, po
             A dictionary containing the evaluation results
         """
         try:
+            # Use the same system prompt as OpenAI for consistency
             system_prompt = "You are a communication skills expert who evaluates customer service responses. Provide your evaluation in valid JSON format."
             
             response = self.client.messages.create(
@@ -192,7 +200,10 @@ Format your response as a JSON object with the following keys: empathy_score, po
                 messages=[
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=2000
+                max_tokens=2000,
+                temperature=0.7,
+                # Added to match standard Anthropic parameters
+                anthropic_version="2023-06-01"
             )
             
             # Extract and parse the JSON response
@@ -209,4 +220,4 @@ Format your response as a JSON object with the following keys: empathy_score, po
             
         except Exception as e:
             logger.error(f"Error with Anthropic evaluation: {str(e)}")
-            raise 
+            raise

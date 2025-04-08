@@ -1,4 +1,6 @@
-/* Custom styles for Communication Evaluator */
+/* CSS
+Currently it is global
+*/
 
 body {
     background-color: #f8f9fa;
@@ -24,12 +26,10 @@ body {
     background-color: #0d6efd;
 }
 
-/* Score display styling */
 .display-6 {
     font-weight: bold;
 }
 
-/* For smaller screens */
 @media (max-width: 768px) {
     .display-6 {
         font-size: 1.5rem;

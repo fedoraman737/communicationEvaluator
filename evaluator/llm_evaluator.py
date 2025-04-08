@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 from models.response import Response
 from models.evaluation import Evaluation
 
-# Set up logging
+# logging for debug -- disable in production
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ class LLMEvaluator:
             self.model_name = os.getenv('MODEL_NAME', 'gpt-4o')
         self.test_mode = test_mode
         
-        # Initialize clients based on provider
+        # initialize clients based on provider
         if self.provider == 'openai':
             openai.api_key = os.getenv('OPENAI_API_KEY')
             if not openai.api_key and not self.test_mode:
@@ -109,6 +109,7 @@ class LLMEvaluator:
         except Exception as e:
             logger.error(f"Error evaluating response: {str(e)}")
             # Return a default evaluation in case of error
+            # we should probably change this to a more specific error message -- but this is a good fallback for now. - TheHellSpy
             return Evaluation(
                 empathy_score=5.0,
                 positioning_score=5.0,

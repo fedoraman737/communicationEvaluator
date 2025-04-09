@@ -48,13 +48,13 @@ def scenarios():
         Scenario(
             id=2,
             title="Account Recovery Wait Time",
-            description="Craft your best response to a customer asking: 'Why do we have to wait 20 days for Apple Account recovery to reset my password?'",
+            description="Craft your best response to a customer asking: 'Why do we have to wait 20 days for account recovery to reset my password?'",
             category="Account Management"
         ),
         Scenario(
             id=3,
             title="Troubleshooting Skepticism",
-            description="During troubleshooting for a slow MacBook, the customer says: 'I don't think this troubleshooting will work.' What is your best response?",
+            description="During troubleshooting for a slow computer, the customer says: 'I don't think this troubleshooting will work.' What is your best response?",
             category="Technical Support"
         )
     ]
@@ -73,13 +73,13 @@ def scenario_detail(scenario_id):
         2: Scenario(
             id=2,
             title="Account Recovery Wait Time",
-            description="Craft your best response to a customer asking: 'Why do we have to wait 20 days for Apple Account recovery to reset my password?'",
+            description="Craft your best response to a customer asking: 'Why do we have to wait 20 days for account recovery to reset my password?'",
             category="Account Management"
         ),
         3: Scenario(
             id=3,
             title="Troubleshooting Skepticism",
-            description="During troubleshooting for a slow MacBook, the customer says: 'I don't think this troubleshooting will work.' What is your best response?",
+            description="During troubleshooting for a slow computer, the customer says: 'I don't think this troubleshooting will work.' What is your best response?",
             category="Technical Support"
         )
     }

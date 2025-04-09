@@ -32,7 +32,7 @@ def test_evaluation_prompt_creation():
     response = Response(
         advisor_id="test_advisor",
         scenario_id=1,
-        text="I understand you're frustrated about the refund denial. While Apple's policy doesn't allow refunds for this app, I can suggest some alternatives that might help with your needs.",
+        text="I understand you're frustrated about the refund denial. While our policy doesn't allow refunds for this app, I can suggest some alternatives that might help with your needs.",
         submitted_at=datetime.now()
     )
     
@@ -62,7 +62,7 @@ def test_evaluation_with_openai():
     response = Response(
         advisor_id="test_advisor",
         scenario_id=1,
-        text="I completely understand how frustrating this situation is for you. While Apple's policy doesn't allow refunds for this particular app, I'd like to help you find an alternative solution. Many customers in similar situations have found that [alternative approach] works well. Would you like me to guide you through those options instead?",
+        text="I completely understand how frustrating this situation is for you. While our policy doesn't allow refunds for this particular app, I'd like to help you find an alternative solution. Many customers in similar situations have found that [alternative approach] works well. Would you like me to guide you through those options instead?",
         submitted_at=datetime.now()
     )
     

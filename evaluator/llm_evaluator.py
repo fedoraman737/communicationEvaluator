@@ -16,6 +16,28 @@ logger = logging.getLogger(__name__)
 # Load environment variables
 load_dotenv()
 
+# Monkey patch the Anthropic library to fix the proxies issue
+try:
+    import anthropic._base_client
+    
+    # Store the original wrapper
+    original_wrapper = anthropic._base_client.SyncHttpxClientWrapper
+    
+    # Create a modified wrapper that doesn't pass proxies
+    class CustomHttpxWrapper(original_wrapper):
+        def __init__(self, *args, **kwargs):
+            # Remove proxies from kwargs if present
+            if 'proxies' in kwargs:
+                del kwargs['proxies']
+            super().__init__(*args, **kwargs)
+    
+    # Replace the original wrapper with our custom one
+    anthropic._base_client.SyncHttpxClientWrapper = CustomHttpxWrapper
+    
+    logger.info("Successfully patched Anthropic library")
+except Exception as e:
+    logger.error(f"Failed to patch Anthropic library: {e}")
+
 #TODO: Implement batch processing of responses via Anthropic batch processing API
 #TODO: Ensure that there is a way to track the status of the batch processing
 
@@ -48,7 +70,19 @@ class LLMEvaluator:
             anthropic_api_key = os.getenv('ANTHROPIC_API_KEY')
             if not anthropic_api_key and not self.test_mode:
                 raise ValueError("Anthropic API key not found in environment variables")
-            self.client = anthropic.Anthropic(api_key=anthropic_api_key) if anthropic_api_key else None
+            
+            # Initialize Anthropic client using standard approach now that we've patched the library
+            if anthropic_api_key:
+                try:
+                    self.client = anthropic.Anthropic(api_key=anthropic_api_key)
+                    logger.info("Successfully initialized Anthropic client")
+                except Exception as e:
+                    logger.error(f"Error initializing Anthropic client: {str(e)}")
+                    if not self.test_mode:
+                        raise
+                    self.client = None
+            else:
+                self.client = None
         else:
             raise ValueError(f"Unsupported LLM provider: {self.provider}")
         
@@ -192,26 +226,34 @@ Format your response as a JSON object with the following keys: empathy_score, po
             A dictionary containing the evaluation results
         """
         try:
-            # Use the same system prompt as OpenAI for consistency
+            # System prompt to instruct Claude to evaluate communication
             system_prompt = "You are a communication skills expert who evaluates customer service responses. Provide your evaluation in valid JSON format."
             
-            response = self.client.messages.create(
+            # Following exactly the structure from the documentation
+            message = self.client.messages.create(
                 model=self.model_name,
+                max_tokens=2000,
                 system=system_prompt,
                 messages=[
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=2000,
-                temperature=0.7,
-                # Added to match standard Anthropic parameters
-                anthropic_version="2023-06-01"
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": prompt
+                            }
+                        ]
+                    }
+                ]
             )
             
-            # Extract and parse the JSON response
-            content = response.content[0].text
-            # Find JSON in the response (in case there's additional text)
+            # Extract content from the response
+            content = message.content[0].text
+            
+            # Find JSON in the response
             json_start = content.find('{')
             json_end = content.rfind('}') + 1
+            
             if json_start >= 0 and json_end > json_start:
                 json_str = content[json_start:json_end]
                 evaluation_result = json.loads(json_str)

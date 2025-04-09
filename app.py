@@ -21,7 +21,7 @@ openai_key = os.getenv('OPENAI_API_KEY')
 anthropic_key = os.getenv('ANTHROPIC_API_KEY')
 api_key_available = bool(openai_key or anthropic_key)
 
-# Only use test mode if no API key is available
+# Use actual API calls if key is available
 evaluator = LLMEvaluator(test_mode=not api_key_available)
 
 # Log which mode we're using

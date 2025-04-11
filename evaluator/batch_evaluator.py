@@ -133,11 +133,46 @@ class BatchEvaluator:
             if df is None:
                 raise ValueError("Could not read the file with any of the attempted encodings")
             
-            # Validate required columns
-            required_columns = ["Id", "Response"]
-            for col in required_columns:
-                if col not in df.columns:
-                    raise ValueError(f"CSV file must contain a '{col}' column")
+            # Check if this is the special format where scenarios are column headers
+            is_special_format = False
+            scenario_columns = []
+            
+            # Try to detect scenario columns (they typically have long text in headers)
+            for col in df.columns:
+                if isinstance(col, str) and len(col) > 50:  # Assume long column names are scenarios
+                    scenario_columns.append(col)
+                    is_special_format = True
+            
+            # Process the data based on the detected format
+            if is_special_format and scenario_columns:
+                logger.info(f"Detected special CSV format with {len(scenario_columns)} scenario columns")
+                
+                # Transform the data: for each row and each scenario column, create an entry
+                transformed_data = []
+                
+                for idx, row in df.iterrows():
+                    for scenario_idx, scenario_col in enumerate(scenario_columns, 1):
+                        response_text = row.get(scenario_col, "")
+                        if pd.notna(response_text) and response_text.strip():  # Only process non-empty responses
+                            transformed_data.append({
+                                "Id": f"{row.get('Id', idx)}_{scenario_idx}",
+                                "Email": row.get("Email", "anonymous"),
+                                "Your speech": scenario_idx,
+                                "Response": response_text,
+                                "scenario_text": scenario_col  # Store the scenario text
+                            })
+                
+                # Create a new dataframe with the transformed data
+                if transformed_data:
+                    df = pd.DataFrame(transformed_data)
+                else:
+                    raise ValueError("No valid responses found in the CSV file")
+            else:
+                # Validate required columns for standard format
+                required_columns = ["Id", "Response"]
+                for col in required_columns:
+                    if col not in df.columns:
+                        raise ValueError(f"CSV file must contain a '{col}' column")
             
             # Sanitize text fields
             if "Response" in df.columns:
@@ -152,6 +187,7 @@ class BatchEvaluator:
                 response_text = row.get("Response", "")
                 advisor_id = row.get("Email", "anonymous")
                 scenario_id = row.get("Your speech", 1)  # Default to scenario 1 if not specified
+                scenario_text = row.get("scenario_text", "")  # Get the scenario text if available
                 
                 # Create a Response object
                 response = Response(
@@ -164,6 +200,13 @@ class BatchEvaluator:
                 
                 # Generate evaluation prompt
                 prompt = self.llm_evaluator._create_evaluation_prompt(response)
+                
+                # If we have the scenario text, add it to the prompt
+                if scenario_text:
+                    prompt = prompt.replace(
+                        f"Customer Scenario ID: {response.scenario_id}",
+                        f"Customer Scenario: \"{scenario_text}\""
+                    )
                 
                 # Create batch request
                 batch_request = {
@@ -240,7 +283,8 @@ class BatchEvaluator:
         # For Anthropic, get actual batch status
         if self.provider == 'anthropic' and not batch_id.startswith("sequential_batch_"):
             try:
-                response = self.client.messages.batches.retrieve(batch_id=batch_id)
+                # Pass the batch_id as a positional argument, not a keyword argument
+                response = self.client.messages.batches.retrieve(batch_id)
                 return {
                     "id": response.id,
                     "type": response.type,
@@ -307,6 +351,41 @@ class BatchEvaluator:
         if df is None:
             raise ValueError("Could not read the file with any of the attempted encodings")
         
+        # Check if this is the special format where scenarios are column headers
+        is_special_format = False
+        scenario_columns = []
+        
+        # Try to detect scenario columns (they typically have long text in headers)
+        for col in df.columns:
+            if isinstance(col, str) and len(col) > 50:  # Assume long column names are scenarios
+                scenario_columns.append(col)
+                is_special_format = True
+        
+        # Process the data based on the detected format
+        if is_special_format and scenario_columns:
+            logger.info(f"Detected special CSV format with {len(scenario_columns)} scenario columns")
+            
+            # Transform the data: for each row and each scenario column, create an entry
+            transformed_data = []
+            
+            for idx, row in df.iterrows():
+                for scenario_idx, scenario_col in enumerate(scenario_columns, 1):
+                    response_text = row.get(scenario_col, "")
+                    if pd.notna(response_text) and response_text.strip():  # Only process non-empty responses
+                        transformed_data.append({
+                            "Id": f"{row.get('Id', idx)}_{scenario_idx}",
+                            "Email": row.get("Email", "anonymous"),
+                            "Your speech": scenario_idx,
+                            "Response": response_text,
+                            "scenario_text": scenario_col  # Store the scenario text
+                        })
+            
+            # Create a new dataframe with the transformed data
+            if transformed_data:
+                df = pd.DataFrame(transformed_data)
+            else:
+                raise ValueError("No valid responses found in the CSV file")
+        
         # Sanitize text fields
         if "Response" in df.columns:
             df["Response"] = df["Response"].apply(sanitize_text)
@@ -319,6 +398,7 @@ class BatchEvaluator:
             response_text = row.get("Response", "")
             advisor_id = row.get("Email", "anonymous")
             scenario_id = row.get("Your speech", 1)
+            scenario_text = row.get("scenario_text", "")  # Get the scenario text if available
             
             response = Response(
                 advisor_id=advisor_id,
@@ -327,6 +407,12 @@ class BatchEvaluator:
                 submitted_at=datetime.now(),
                 id=response_id
             )
+            
+            # Store the scenario text in the response object's metadata if needed
+            if scenario_text:
+                # We'll pass this information in the response_id for now
+                # In a real implementation, you'd extend the Response class to include scenario_text
+                response.id = f"{response_id}||{scenario_text[:50]}"
             
             responses_map[response_id] = response
         
@@ -347,10 +433,11 @@ class BatchEvaluator:
             return evaluations
         
         # For Anthropic batch API
+        batch_had_errors = False
         if self.provider == 'anthropic' and not batch_id.startswith("sequential_batch_"):
             try:
                 # Get batch status to check for results URL
-                batch_status = self.client.messages.batches.retrieve(batch_id=batch_id)
+                batch_status = self.client.messages.batches.retrieve(batch_id)
                 
                 if batch_status.processing_status != "ended":
                     raise ValueError(f"Batch processing has not ended yet. Current status: {batch_status.processing_status}")
@@ -358,7 +445,17 @@ class BatchEvaluator:
                 if not batch_status.results_url:
                     raise ValueError("Results URL not available")
                 
-                # Fetch results from the provided URL
+                # Check for errors in the batch
+                if batch_status.request_counts.succeeded == 0 and batch_status.request_counts.errored > 0:
+                    logger.warning(f"All batch requests failed. Errored: {batch_status.request_counts.errored}")
+                    batch_had_errors = True
+                
+                # Log batch status for debugging
+                logger.info(f"Batch status: {batch_status.processing_status}, "
+                            f"Succeeded: {batch_status.request_counts.succeeded}, "
+                            f"Errored: {batch_status.request_counts.errored}")
+                
+                # Fetch results from the provided URL even if there are errors
                 import requests
                 headers = {
                     "x-api-key": os.getenv('ANTHROPIC_API_KEY'),
@@ -369,12 +466,16 @@ class BatchEvaluator:
                 response.raise_for_status()
                 
                 # Process each line (JSONL format)
+                any_success = False
+                error_details = []
+                
                 for line in response.text.strip().split('\n'):
                     result_data = json.loads(line)
                     custom_id = result_data.get("custom_id")
                     result = result_data.get("result", {})
                     
                     if result.get("type") == "succeeded":
+                        any_success = True
                         message_content = result.get("message", {}).get("content", [])
                         content_text = ""
                         
@@ -403,11 +504,40 @@ class BatchEvaluator:
                         except json.JSONDecodeError:
                             logger.error(f"Error parsing JSON from response for ID {custom_id}")
                     else:
-                        logger.warning(f"Request {custom_id} failed with result type: {result.get('type')}")
+                        # Log detailed error information
+                        error_type = result.get("error", {}).get("type", "unknown")
+                        error_message = result.get("error", {}).get("message", "No error message")
+                        logger.warning(f"Request {custom_id} failed with error type: {error_type}, message: {error_message}")
+                        error_details.append(f"{error_type}: {error_message}")
+                
+                # If batch had errors but some succeeded, log them
+                if batch_had_errors and any_success:
+                    logger.warning(f"Batch had partial success. {len(evaluations)} succeeded out of {len(responses_map)}")
+                
+                # If no successful evaluations, fall back to sequential processing
+                if not any_success and batch_had_errors:
+                    logger.warning(f"No successful evaluations from batch API. Common errors: {error_details[:3]}")
+                    logger.warning("Falling back to sequential processing...")
+                    
+                    # Fall back to sequential processing
+                    for response_id, response in responses_map.items():
+                        try:
+                            evaluation = self.llm_evaluator.evaluate_response(response)
+                            evaluations.append(evaluation)
+                        except Exception as e:
+                            logger.error(f"Error in sequential evaluation for response {response_id}: {str(e)}")
             
             except Exception as e:
                 logger.error(f"Error getting batch results: {str(e)}")
-                raise
+                logger.warning("Falling back to sequential processing...")
+                
+                # Fall back to sequential processing if batch API fails completely
+                for response_id, response in responses_map.items():
+                    try:
+                        evaluation = self.llm_evaluator.evaluate_response(response)
+                        evaluations.append(evaluation)
+                    except Exception as e:
+                        logger.error(f"Error in sequential evaluation for response {response_id}: {str(e)}")
         
         # For sequential processing (OpenAI or other providers)
         elif batch_id.startswith("sequential_batch_"):

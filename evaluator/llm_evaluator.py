@@ -165,16 +165,42 @@ class LLMEvaluator:
         Returns:
             A string containing the evaluation prompt
         """
+        # Check if scenario information is included in the response ID (from batch processing)
+        scenario_description = ""
+        response_id_parts = response.id.split("||", 1) if "||" in str(response.id) else [response.id]
+        
+        if len(response_id_parts) > 1:
+            # Extract the real response ID and scenario text
+            real_response_id = response_id_parts[0]
+            scenario_description = response_id_parts[1]
+            # Update the response ID to the real one
+            response.id = real_response_id
+        
+        # Sanitize the response text to ensure it's clean
+        response_text = response.text
+        if isinstance(response_text, str):
+            # Replace smart quotes and other problematic characters
+            response_text = response_text.replace(''', "'").replace(''', "'").replace('"', '"').replace('"', '"')
+            response_text = response_text.replace('–', '-').replace('—', '-')
+        
+        # Create the prompt
         prompt = f"""You are a communication skills expert tasked with evaluating an advisor's response to a customer scenario. Your job is to analyze the response and provide scores and feedback on three key communication domains:
 
 1. Empathy: How well does the advisor acknowledge and connect with the customer's emotions?
 2. Positioning: How effectively does the advisor balance positive and negative sentiments, maintaining an appropriate tone?
 3. Persuasion: How well does the advisor use persuasion techniques like foot-in-the-door, yes-set, social proof, and reciprocity?
 
-Customer Scenario ID: {response.scenario_id}
-Advisor Response: "{response.text}"
-
-Please evaluate the response and provide the following:
+"""
+        
+        # Add scenario information
+        if scenario_description:
+            prompt += f"Customer Scenario: \"{scenario_description}\"\n"
+        else:
+            prompt += f"Customer Scenario ID: {response.scenario_id}\n"
+            
+        prompt += f"Advisor Response: \"{response_text}\"\n\n"
+        
+        prompt += """Please evaluate the response and provide the following:
 1. Empathy Score (0-10): 
 2. Positioning Score (0-10): 
 3. Persuasion Score (0-10): 

@@ -45,36 +45,43 @@
             </div>
             <div class="card-body">
                 {% set total_responses = evaluations|length %}
-                {% set avg_empathy = (evaluations|sum(attribute='empathy_score') / total_responses)|round(1) %}
-                {% set avg_positioning = (evaluations|sum(attribute='positioning_score') / total_responses)|round(1) %}
-                {% set avg_persuasion = (evaluations|sum(attribute='persuasion_score') / total_responses)|round(1) %}
-                {% set avg_overall = (evaluations|sum(attribute='overall_score') / total_responses)|round(1) %}
-                
-                <div class="row text-center mb-4">
-                    <div class="col-md-3">
-                        <div class="display-6">{{ avg_empathy }}</div>
-                        <div>Avg. Empathy</div>
+                {% if total_responses > 0 %}
+                    {% set avg_empathy = (evaluations|sum(attribute='empathy_score') / total_responses)|round(1) %}
+                    {% set avg_positioning = (evaluations|sum(attribute='positioning_score') / total_responses)|round(1) %}
+                    {% set avg_persuasion = (evaluations|sum(attribute='persuasion_score') / total_responses)|round(1) %}
+                    {% set avg_overall = (evaluations|sum(attribute='overall_score') / total_responses)|round(1) %}
+                    
+                    <div class="row text-center mb-4">
+                        <div class="col-md-3">
+                            <div class="display-6">{{ avg_empathy }}</div>
+                            <div>Avg. Empathy</div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="display-6">{{ avg_positioning }}</div>
+                            <div>Avg. Positioning</div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="display-6">{{ avg_persuasion }}</div>
+                            <div>Avg. Persuasion</div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="display-6">{{ avg_overall }}</div>
+                            <div>Avg. Overall</div>
+                        </div>
                     </div>
-                    <div class="col-md-3">
-                        <div class="display-6">{{ avg_positioning }}</div>
-                        <div>Avg. Positioning</div>
+                    
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> Evaluated {{ total_responses }} responses in this batch.
                     </div>
-                    <div class="col-md-3">
-                        <div class="display-6">{{ avg_persuasion }}</div>
-                        <div>Avg. Persuasion</div>
+                {% else %}
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i> No successful evaluations were found in this batch.
                     </div>
-                    <div class="col-md-3">
-                        <div class="display-6">{{ avg_overall }}</div>
-                        <div>Avg. Overall</div>
-                    </div>
-                </div>
-                
-                <div class="alert alert-info">
-                    <i class="bi bi-info-circle"></i> Evaluated {{ total_responses }} responses in this batch.
-                </div>
+                {% endif %}
             </div>
         </div>
         
+        {% if evaluations|length > 0 %}
         <div class="card shadow-sm mb-4">
             <div class="card-header bg-secondary text-white">
                 <h2 class="mb-0 h5">Individual Results</h2>
@@ -112,10 +119,30 @@
                 </div>
             </div>
         </div>
+        {% else %}
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-warning text-dark">
+                <h2 class="mb-0 h5">Error Processing Batch</h2>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i> All evaluation requests in this batch failed. This could be due to:
+                    <ul class="mt-2">
+                        <li>API rate limits or quotas exceeded</li>
+                        <li>Invalid response format</li>
+                        <li>Issues with the LLM provider</li>
+                    </ul>
+                    <p class="mt-3">Try processing a smaller batch or check your API credentials.</p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
         
         <div class="d-grid gap-2 d-md-flex justify-content-md-between">
             <a href="{{ url_for('batch') }}" class="btn btn-secondary">Back to Batch List</a>
+            {% if evaluations|length > 0 %}
             <a href="{{ url_for('download_results', batch_id=batch.id) }}" class="btn btn-success">Download Results</a>
+            {% endif %}
         </div>
     </div>
 </div>

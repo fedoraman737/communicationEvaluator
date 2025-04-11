@@ -293,17 +293,30 @@ def batch_results(batch_id):
         # If we haven't processed results yet
         if not batch.get('result_path'):
             # Get the results from the evaluator
+            app.logger.info(f"Retrieving batch results for batch ID: {batch_id}")
             evaluations = batch_evaluator.get_batch_results(batch_id, batch['file_path'])
             
-            # Export results to CSV
+            # Export results to CSV even if empty
             result_filename = f"results_{batch_id}.csv"
             result_path = os.path.join(app.config['RESULTS_FOLDER'], result_filename)
             
-            batch_evaluator.export_results_to_csv(evaluations, result_path)
+            if evaluations:
+                app.logger.info(f"Exporting {len(evaluations)} evaluations to CSV: {result_path}")
+                batch_evaluator.export_results_to_csv(evaluations, result_path)
+            else:
+                app.logger.warning(f"No successful evaluations to export for batch ID: {batch_id}")
+                # Create an empty results file with headers
+                with open(result_path, 'w', encoding='utf-8') as f:
+                    f.write("response_id,empathy_score,positioning_score,persuasion_score,overall_score,strengths,areas_for_improvement,feedback\n")
+                    f.write(f"batch_{batch_id},0,0,0,0,\"No successful evaluations\",\"API errors occurred\",\"The batch processing failed. Please try again with fewer responses or check API quotas.\"\n")
             
             # Update batch info
             batch_jobs[batch_id]['result_path'] = result_path
             batch_jobs[batch_id]['evaluations'] = evaluations
+            
+            # If no evaluations were successful, add a warning message
+            if not evaluations:
+                flash("All evaluation requests in this batch failed. This could be due to API limits or formatting issues.", "warning")
         else:
             # Use cached evaluations if available
             evaluations = batch_jobs[batch_id].get('evaluations', [])
@@ -315,22 +328,30 @@ def batch_results(batch_id):
                 evaluations = []
                 
                 for _, row in df.iterrows():
-                    evaluation = Evaluation(
-                        empathy_score=float(row['empathy_score']),
-                        positioning_score=float(row['positioning_score']),
-                        persuasion_score=float(row['persuasion_score']),
-                        overall_score=float(row['overall_score']),
-                        strengths=str(row['strengths']).split('; '),
-                        areas_for_improvement=str(row['areas_for_improvement']).split('; '),
-                        feedback=str(row['feedback']),
-                        response_id=str(row['response_id'])
-                    )
-                    evaluations.append(evaluation)
+                    # Skip the placeholder row if it exists
+                    if str(row.get('response_id', '')).startswith('batch_'):
+                        continue
+                        
+                    try:
+                        evaluation = Evaluation(
+                            empathy_score=float(row['empathy_score']),
+                            positioning_score=float(row['positioning_score']),
+                            persuasion_score=float(row['persuasion_score']),
+                            overall_score=float(row['overall_score']),
+                            strengths=str(row['strengths']).split('; '),
+                            areas_for_improvement=str(row['areas_for_improvement']).split('; '),
+                            feedback=str(row['feedback']),
+                            response_id=str(row['response_id'])
+                        )
+                        evaluations.append(evaluation)
+                    except Exception as e:
+                        app.logger.error(f"Error parsing evaluation from CSV: {str(e)}")
                 
                 batch_jobs[batch_id]['evaluations'] = evaluations
         
         return render_template('batch_results.html', batch=batch, evaluations=evaluations)
     except Exception as e:
+        app.logger.error(f"Error getting batch results: {str(e)}", exc_info=True)
         flash(f"Error getting batch results: {str(e)}", "error")
         return redirect(url_for('batch'))
 

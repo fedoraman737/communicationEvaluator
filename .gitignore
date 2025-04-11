@@ -31,4 +31,20 @@ ENV/
 .idea/
 .vscode/
 *.swp
-*.swo 
+*.swo
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Project specific
+uploads/
+results/
+*.csv
+*.xlsx
+*.xls
+
+# Unit test / coverage reports
+htmlcov/
+.coverage
+coverage/ 

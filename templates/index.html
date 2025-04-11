@@ -1,46 +1,64 @@
 {% extends "base.html" %}
 
-{% block title %}Communication Evaluator - Home{% endblock %}
+{% block title %}Home - Communication Evaluator{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
+    <div class="col-md-8 text-center">
+        <h1 class="display-4 mb-4">Communication Evaluator</h1>
+        <p class="lead mb-5">
+            Evaluate your communication skills using AI-powered analysis and get personalized feedback.
+        </p>
+    </div>
+</div>
+
+<div class="row justify-content-center mb-5">
+    <div class="col-md-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-body text-center p-5">
+                <i class="bi bi-chat-text display-1 text-primary mb-3"></i>
+                <h2 class="h3 mb-3">Individual Evaluation</h2>
+                <p class="mb-4">Evaluate single responses to communication scenarios and get detailed feedback.</p>
+                <a href="{{ url_for('scenarios') }}" class="btn btn-lg btn-primary">
+                    Start Individual Evaluation
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-body text-center p-5">
+                <i class="bi bi-file-earmark-spreadsheet display-1 text-success mb-3"></i>
+                <h2 class="h3 mb-3">Batch Processing</h2>
+                <p class="mb-4">Upload a CSV file with multiple responses for efficient batch evaluation.</p>
+                <a href="{{ url_for('batch') }}" class="btn btn-lg btn-success">
+                    Start Batch Processing
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row justify-content-center">
     <div class="col-md-8">
         <div class="card shadow-sm">
-            <div class="card-body text-center">
-                <h1 class="display-4 mb-4">Communication Evaluator</h1>
-                <p class="lead">Enhance your customer communication skills with AI-powered feedback</p>
-                <hr>
-                <div class="mt-4">
-                    <h2>How It Works</h2>
-                    <div class="row mt-4">
-                        <div class="col-md-4">
-                            <div class="card mb-3 h-100">
-                                <div class="card-body">
-                                    <h5 class="card-title">1. Select a Scenario</h5>
-                                    <p class="card-text">Choose from a variety of customer service scenarios</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="card mb-3 h-100">
-                                <div class="card-body">
-                                    <h5 class="card-title">2. Provide Your Response</h5>
-                                    <p class="card-text">Write your best customer service response</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="card mb-3 h-100">
-                                <div class="card-body">
-                                    <h5 class="card-title">3. Get AI Feedback</h5>
-                                    <p class="card-text">Receive detailed evaluation and improvement suggestions</p>
-                                </div>
-                            </div>
-                        </div>
+            <div class="card-header bg-primary text-white">
+                <h2 class="mb-0 h5">What We Evaluate</h2>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 text-center mb-4 mb-md-0">
+                        <div class="display-6 text-primary">Empathy</div>
+                        <p class="mt-2">How well your response acknowledges and connects with emotions</p>
                     </div>
-                </div>
-                <div class="mt-4">
-                    <a href="{{ url_for('scenarios') }}" class="btn btn-primary btn-lg">Get Started</a>
+                    <div class="col-md-4 text-center mb-4 mb-md-0">
+                        <div class="display-6 text-primary">Positioning</div>
+                        <p class="mt-2">How effectively you balance positive/negative sentiments with tone</p>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <div class="display-6 text-primary">Persuasion</div>
+                        <p class="mt-2">Your use of persuasion techniques like social proof and reciprocity</p>
+                    </div>
                 </div>
             </div>
         </div>

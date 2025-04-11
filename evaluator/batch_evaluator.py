@@ -604,8 +604,35 @@ class BatchEvaluator:
                 "feedback": eval.feedback
             })
         
-        # Create dataframe and save to CSV with UTF-8 encoding
+        # Create dataframe from evaluation data
         results_df = pd.DataFrame(data)
+        
+        # Check if CommSheet.csv exists in the same directory as the input file
+        comm_sheet_path = os.path.join(os.path.dirname(output_path), "CommSheet.csv")
+        if not os.path.exists(comm_sheet_path):
+            # Check in the uploads folder
+            uploads_folder = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'uploads')
+            comm_sheet_path = os.path.join(uploads_folder, "CommSheet.csv")
+        
+        # If CommSheet.csv exists, read the special number
+        special_number = None
+        if os.path.exists(comm_sheet_path):
+            try:
+                comm_df = pd.read_csv(comm_sheet_path)
+                if 'SpecialNumber' in comm_df.columns and not comm_df['SpecialNumber'].empty:
+                    special_number = comm_df['SpecialNumber'].iloc[0]
+                elif 'Special_Number' in comm_df.columns and not comm_df['Special_Number'].empty:
+                    special_number = comm_df['Special_Number'].iloc[0]
+                elif 'Special Number' in comm_df.columns and not comm_df['Special Number'].empty:
+                    special_number = comm_df['Special Number'].iloc[0]
+                # Add the special number to the results DataFrame
+                if special_number is not None:
+                    results_df['special_number'] = special_number
+                    logger.info(f"Added special number {special_number} to results")
+            except Exception as e:
+                logger.error(f"Error reading CommSheet.csv: {str(e)}")
+        
+        # Save to CSV with UTF-8 encoding
         results_df.to_csv(output_path, index=False, encoding='utf-8-sig')  # utf-8-sig for Excel compatibility
         
         return output_path 

@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session, send_file
 import os
 from dotenv import load_dotenv
 import json
@@ -368,10 +368,8 @@ def download_results(batch_id):
         flash("Result file not found", "error")
         return redirect(url_for('batch_results', batch_id=batch_id))
     
-    # In a real app, you'd use send_file to download the file
-    # For demo purposes, redirect to batch results
-    flash("Download started", "success")
-    return redirect(url_for('batch_results', batch_id=batch_id))
+    # Use send_file to actually download the file
+    return send_file(result_path, as_attachment=True, download_name=f"results_{batch_id}.csv")
 
 @app.route('/api/batch', methods=['POST'])
 def api_batch():
@@ -488,6 +486,17 @@ def api_batch_results(batch_id):
             # Use cached evaluations
             evaluations = batch_jobs[batch_id].get('evaluations', [])
         
+        # Check if we have a special number from the exported CSV
+        special_number = None
+        result_path = batch_jobs[batch_id]['result_path']
+        if os.path.exists(result_path):
+            try:
+                results_df = pd.read_csv(result_path)
+                if 'special_number' in results_df.columns and not results_df['special_number'].empty:
+                    special_number = results_df['special_number'].iloc[0]
+            except Exception as e:
+                app.logger.error(f"Error reading special number from results CSV: {str(e)}")
+        
         # Convert evaluations to JSON
         results = []
         for eval in evaluations:
@@ -502,11 +511,17 @@ def api_batch_results(batch_id):
                 'feedback': eval.feedback
             })
         
-        return jsonify({
+        response_data = {
             'batch_id': batch_id,
             'results': results,
             'download_url': url_for('api_batch_download', batch_id=batch_id, _external=True)
-        })
+        }
+        
+        # Add special number to response if available
+        if special_number is not None:
+            response_data['special_number'] = special_number
+        
+        return jsonify(response_data)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -516,12 +531,13 @@ def api_batch_download(batch_id):
     if batch_id not in batch_jobs or not batch_jobs[batch_id].get('result_path'):
         return jsonify({'error': 'Results not available'}), 404
     
-    # In a real app, you'd return the file for download
-    # For demo purposes, just return the URL
-    return jsonify({
-        'batch_id': batch_id,
-        'result_url': url_for('download_results', batch_id=batch_id, _external=True)
-    })
+    result_path = batch_jobs[batch_id]['result_path']
+    
+    if not os.path.exists(result_path):
+        return jsonify({'error': 'Result file not found'}), 404
+        
+    # Return the file for download
+    return send_file(result_path, as_attachment=True, download_name=f"results_{batch_id}.csv")
 
 if __name__ == '__main__':
     app.run(debug=True) 

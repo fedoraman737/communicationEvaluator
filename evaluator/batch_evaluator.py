@@ -7,6 +7,7 @@ from typing import List, Dict, Any, Optional
 import logging
 import codecs
 import re
+import requests
 
 # Import models
 from models.response import Response
@@ -214,9 +215,11 @@ class BatchEvaluator:
                     "params": {
                         "model": self.model_name,
                         "max_tokens": 1024,
+                        "system": "You are a communication skills expert who evaluates customer service responses.",
                         "messages": [
-                            {"role": "system", "content": "You are a communication skills expert who evaluates customer service responses."},
-                            {"role": "user", "content": prompt}
+                            {"role": "user", "content": [
+                                {"type": "text", "text": prompt}
+                            ]}
                         ]
                     }
                 }
@@ -235,12 +238,22 @@ class BatchEvaluator:
             
             # Submit batch request to Anthropic
             if self.provider == 'anthropic':
-                response = self.client.messages.batches.create(
-                    requests=batch_requests
-                )
-                self.batch_id = response.id
-                logger.info(f"Created Anthropic batch with ID: {self.batch_id}")
-                return self.batch_id
+                try:
+                    response = self.client.messages.batches.create(
+                        requests=batch_requests
+                    )
+                    self.batch_id = response.id
+                    logger.info(f"Created Anthropic batch with ID: {self.batch_id}")
+                    return self.batch_id
+                except Exception as e:
+                    # Log more detailed error information
+                    logger.error(f"Error creating Anthropic batch: {str(e)}")
+                    # Check for specific Anthropic error types if available
+                    if hasattr(e, 'status_code'):
+                        logger.error(f"Status code: {e.status_code}")
+                    if hasattr(e, 'response') and hasattr(e.response, 'text'):
+                        logger.error(f"Response body: {e.response.text}")
+                    raise
             
             # For other providers (like OpenAI), process sequentially
             # This is a fallback if batch API is not available
@@ -456,14 +469,21 @@ class BatchEvaluator:
                             f"Errored: {batch_status.request_counts.errored}")
                 
                 # Fetch results from the provided URL even if there are errors
-                import requests
+                anthropic_version = os.getenv('ANTHROPIC_API_VERSION', '2023-06-01')
                 headers = {
                     "x-api-key": os.getenv('ANTHROPIC_API_KEY'),
-                    "anthropic-version": "2023-06-01"
+                    "anthropic-version": anthropic_version
                 }
                 
-                response = requests.get(batch_status.results_url, headers=headers)
-                response.raise_for_status()
+                try:
+                    logger.info(f"Fetching batch results using Anthropic API version: {anthropic_version}")
+                    response = requests.get(batch_status.results_url, headers=headers)
+                    response.raise_for_status()
+                except requests.exceptions.RequestException as req_error:
+                    logger.error(f"Error fetching batch results: {str(req_error)}")
+                    if hasattr(req_error.response, 'text'):
+                        logger.error(f"Response error details: {req_error.response.text}")
+                    raise
                 
                 # Process each line (JSONL format)
                 any_success = False
@@ -486,7 +506,16 @@ class BatchEvaluator:
                         
                         # Parse the JSON response
                         try:
-                            evaluation_result = json.loads(content_text)
+                            # Try to find the JSON in the content
+                            json_start = content_text.find('{')
+                            json_end = content_text.rfind('}') + 1
+                            
+                            if json_start >= 0 and json_end > json_start:
+                                json_str = content_text[json_start:json_end]
+                                evaluation_result = json.loads(json_str)
+                            else:
+                                # If no JSON found, try the entire content
+                                evaluation_result = json.loads(content_text)
                             
                             # Create Evaluation object
                             if custom_id in responses_map:

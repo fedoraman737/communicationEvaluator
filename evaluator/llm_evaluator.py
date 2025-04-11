@@ -74,8 +74,13 @@ class LLMEvaluator:
             # Initialize Anthropic client using standard approach now that we've patched the library
             if anthropic_api_key:
                 try:
-                    self.client = anthropic.Anthropic(api_key=anthropic_api_key)
-                    logger.info("Successfully initialized Anthropic client")
+                    # Use latest supported version for batch processing
+                    anthropic_version = os.getenv('ANTHROPIC_API_VERSION', '2023-06-01')
+                    self.client = anthropic.Anthropic(
+                        api_key=anthropic_api_key,
+                        default_headers={"anthropic-version": anthropic_version}
+                    )
+                    logger.info(f"Successfully initialized Anthropic client with API version: {anthropic_version}")
                 except Exception as e:
                     logger.error(f"Error initializing Anthropic client: {str(e)}")
                     if not self.test_mode:
@@ -285,7 +290,12 @@ Format your response as a JSON object with the following keys: empathy_score, po
                 evaluation_result = json.loads(json_str)
                 return evaluation_result
             else:
-                raise ValueError("Could not find valid JSON in Anthropic response")
+                # If no JSON object found, try parsing the entire content
+                try:
+                    evaluation_result = json.loads(content)
+                    return evaluation_result
+                except json.JSONDecodeError:
+                    raise ValueError("Could not find valid JSON in Anthropic response")
             
         except Exception as e:
             logger.error(f"Error with Anthropic evaluation: {str(e)}")

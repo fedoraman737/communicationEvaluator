@@ -1,0 +1,393 @@
+{% extends "print_base.html" %}
+
+{% block title %}Employee Evaluation Report{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+    /* Full width display */
+    .container-fluid {
+        width: 100vw;
+        max-width: 100%;
+        padding: 20px;
+    }
+
+    /* Print optimizations */
+    @media print {
+        .no-print { display: none !important; }
+        .page-break { page-break-after: always; }
+        body {
+            font-size: 12pt;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        .card {
+            border: 1px solid #ddd;
+            margin-bottom: 20px;
+            page-break-inside: avoid;
+            width: 100%;
+        }
+        table {
+            width: 100%;
+            page-break-inside: avoid;
+        }
+        .card-header {
+            background-color: #f0f7ff !important;
+            color: #000 !important;
+            border-bottom: 2px solid #3a86ff !important;
+        }
+        /* Remove shadows for better printing */
+        .shadow-sm { box-shadow: none !important; }
+
+        /* Ensure all backgrounds print */
+        * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+    }
+
+    /* Modern, clean design elements */
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #f8f9fa;
+        color: #333;
+    }
+
+    .container-fluid {
+        background-color: white;
+        box-shadow: 0 0 15px rgba(0,0,0,0.05);
+        border-radius: 8px;
+    }
+
+    /* Ensure tables take full width */
+    .table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .table th {
+        background-color: #f0f7ff;
+        color: #2d62a3;
+        font-weight: 600;
+    }
+
+    .table td, .table th {
+        padding: 12px;
+    }
+
+    /* Equal column widths in score tables */
+    .score-table th, .score-table td {
+        width: 20%;
+        text-align: center;
+    }
+
+    /* Score highlighting */
+    .score-value {
+        font-size: 1.2rem;
+        font-weight: bold;
+    }
+
+    /* Make cards full width with better styling */
+    .card {
+        width: 100%;
+        border-radius: 8px;
+        overflow: hidden;
+        border: none;
+        box-shadow: 0 0 10px rgba(0,0,0,0.05);
+        margin-bottom: 1.5rem;
+    }
+
+    .card-header {
+        background-color: #f0f7ff;
+        color: #2d62a3;
+        font-weight: 600;
+        padding: 12px 20px;
+        border-bottom: 2px solid #3a86ff;
+    }
+
+    .card-body {
+        padding: 20px;
+    }
+
+    /* Ensure response details have appropriate spacing */
+    .response-detail {
+        margin-bottom: 2rem;
+        border-left: 4px solid #3a86ff;
+    }
+
+    /* Header styling */
+    .report-header {
+        margin-bottom: 2rem;
+        border-bottom: 3px solid #f0f7ff;
+        padding-bottom: 1rem;
+    }
+
+    .report-header h1 {
+        color: #2d62a3;
+        font-weight: 600;
+    }
+
+    /* Feedback sections */
+    .strengths-section {
+        border-left: 4px solid #4caf50;
+        padding-left: 15px;
+    }
+
+    .improvement-section {
+        border-left: 4px solid #ff9800;
+        padding-left: 15px;
+    }
+
+    /* Scenario box */
+    .scenario-box {
+        background-color: #f0f7ff;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 20px;
+        border-left: 4px solid #3a86ff;
+    }
+
+    .scenario-title {
+        font-weight: 600;
+        color: #2d62a3;
+        margin-bottom: 8px;
+    }
+
+    /* Response box */
+    .response-box {
+        background-color: #f9f9f9;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 20px;
+        border-left: 4px solid #6c757d;
+    }
+
+    .response-title {
+        font-weight: 600;
+        color: #6c757d;
+        margin-bottom: 8px;
+    }
+
+    /* Page header */
+    .page-header {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+
+    .company-name {
+        font-size: 1.2rem;
+        color: #6c757d;
+    }
+
+    /* Score indicators */
+    .score-indicator {
+        display: inline-block;
+        width: 40px;
+        height: 40px;
+        line-height: 40px;
+        text-align: center;
+        border-radius: 50%;
+        font-weight: bold;
+        color: white;
+        margin-right: 10px;
+    }
+
+    .score-high {
+        background-color: #4caf50;
+    }
+
+    .score-medium {
+        background-color: #ff9800;
+    }
+
+    .score-low {
+        background-color: #f44336;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="page-header">
+        <div class="company-name">Communication Evaluator</div>
+        <h1>Performance Evaluation Report</h1>
+    </div>
+
+    <div class="report-header d-flex justify-content-between align-items-center">
+        <h2>Communication Assessment Results</h2>
+        <button class="btn btn-primary no-print" onclick="window.print()">
+            <i class="bi bi-printer"></i> Print
+        </button>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3 class="mb-0 h5">Batch Information</h3>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4"><strong>Batch ID:</strong> {{ batch.id }}</div>
+                <div class="col-md-4"><strong>Filename:</strong> {{ batch.filename }}</div>
+                <div class="col-md-4"><strong>Created:</strong> {{ batch.created_at }}</div>
+            </div>
+        </div>
+    </div>
+
+    {% if advisor_id %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3 class="mb-0 h5">Results for Employee: {{ advisor_id }}</h3>
+        </div>
+        <div class="card-body">
+            <table class="table table-bordered score-table">
+                <thead>
+                    <tr>
+                        <th>Response ID</th>
+                        <th>Empathy</th>
+                        <th>Positioning</th>
+                        <th>Persuasion</th>
+                        <th>Overall</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for eval in advisor_evals %}
+                    <tr>
+                        <td>{{ eval.response_id }}</td>
+                        <td>
+                            <span class="score-indicator {% if eval.empathy_score >= 8 %}score-high{% elif eval.empathy_score >= 6 %}score-medium{% else %}score-low{% endif %}">
+                                {{ eval.empathy_score }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="score-indicator {% if eval.positioning_score >= 8 %}score-high{% elif eval.positioning_score >= 6 %}score-medium{% else %}score-low{% endif %}">
+                                {{ eval.positioning_score }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="score-indicator {% if eval.persuasion_score >= 8 %}score-high{% elif eval.persuasion_score >= 6 %}score-medium{% else %}score-low{% endif %}">
+                                {{ eval.persuasion_score }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="score-indicator {% if eval.overall_score >= 8 %}score-high{% elif eval.overall_score >= 6 %}score-medium{% else %}score-low{% endif %}">
+                                {{ eval.overall_score }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <h3 class="h5 mt-5 mb-4">Detailed Feedback</h3>
+            {% for eval in advisor_evals %}
+            <div class="card mt-4 response-detail">
+                <div class="card-header">
+                    <h4 class="mb-0 h6">Response {{ eval.response_id }}</h4>
+                </div>
+                <div class="card-body">
+                    {% set scenario_id = eval.response_id.split('_')[1]|default('1') if '_' in eval.response_id else '1' %}
+
+                    {% if scenarios and scenario_id in scenarios %}
+                    <div class="scenario-box">
+                        <div class="scenario-title">Scenario:</div>
+                        <div>{{ scenarios[scenario_id] }}</div>
+                    </div>
+                    {% endif %}
+
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <div class="strengths-section">
+                                <h5>Strengths:</h5>
+                                <ul class="list-group list-group-flush">
+                                    {% for strength in eval.strengths %}
+                                    <li class="list-group-item border-0 ps-0">{{ strength }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="improvement-section">
+                                <h5>Areas for Improvement:</h5>
+                                <ul class="list-group list-group-flush">
+                                    {% for area in eval.areas_for_improvement %}
+                                    <li class="list-group-item border-0 ps-0">{{ area }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <h5>Expert Feedback:</h5>
+                        <p class="p-3 bg-light rounded">{{ eval.feedback }}</p>
+                    </div>
+
+                    <div class="mt-4">
+                        <h5>Score Breakdown:</h5>
+                        <div class="row text-center">
+                            <div class="col-md-3">
+                                <div class="score-indicator {% if eval.empathy_score >= 8 %}score-high{% elif eval.empathy_score >= 6 %}score-medium{% else %}score-low{% endif %}">
+                                    {{ eval.empathy_score }}
+                                </div>
+                                <div>Empathy</div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="score-indicator {% if eval.positioning_score >= 8 %}score-high{% elif eval.positioning_score >= 6 %}score-medium{% else %}score-low{% endif %}">
+                                    {{ eval.positioning_score }}
+                                </div>
+                                <div>Positioning</div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="score-indicator {% if eval.persuasion_score >= 8 %}score-high{% elif eval.persuasion_score >= 6 %}score-medium{% else %}score-low{% endif %}">
+                                    {{ eval.persuasion_score }}
+                                </div>
+                                <div>Persuasion</div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="score-indicator {% if eval.overall_score >= 8 %}score-high{% elif eval.overall_score >= 6 %}score-medium{% else %}score-low{% endif %}">
+                                    {{ eval.overall_score }}
+                                </div>
+                                <div>Overall</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% else %}
+    <div class="no-print alert alert-info">
+        <p>Please select an employee to view their report.</p>
+    </div>
+
+    {% if grouped_evaluations %}
+    <div class="no-print card mb-4">
+        <div class="card-header">
+            <h3 class="mb-0 h5">Available Employee Reports</h3>
+        </div>
+        <div class="card-body">
+            <div class="list-group">
+                {% for emp_id in grouped_evaluations.keys() %}
+                <a href="{{ url_for('print_batch_results', batch_id=batch.id, advisor_id=emp_id) }}" class="list-group-item list-group-item-action">
+                    <div class="d-flex w-100 justify-content-between">
+                        <h5 class="mb-1">Employee: {{ emp_id }}</h5>
+                        <span class="badge bg-primary rounded-pill">{{ grouped_evaluations[emp_id]|length }} responses</span>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    {% endif %}
+
+    <div class="no-print mt-4">
+        <a href="{{ url_for('batch_results', batch_id=batch.id) }}" class="btn btn-secondary">
+            Back to Results
+        </a>
+    </div>
+</div>
+{% endblock %}

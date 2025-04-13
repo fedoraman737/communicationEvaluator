@@ -281,25 +281,25 @@ def batch_results(batch_id):
     if batch_id not in batch_jobs:
         flash("Batch job not found", "error")
         return redirect(url_for('batch'))
-    
+
     batch = batch_jobs[batch_id]
-    
+
     # Check if we already have results
     if batch['status'] != 'ended':
         flash("Batch processing has not completed yet", "warning")
         return redirect(url_for('batch_status', batch_id=batch_id))
-    
+
     try:
         # If we haven't processed results yet
         if not batch.get('result_path'):
             # Get the results from the evaluator
             app.logger.info(f"Retrieving batch results for batch ID: {batch_id}")
             evaluations = batch_evaluator.get_batch_results(batch_id, batch['file_path'])
-            
+
             # Export results to CSV even if empty
             result_filename = f"results_{batch_id}.csv"
             result_path = os.path.join(app.config['RESULTS_FOLDER'], result_filename)
-            
+
             if evaluations:
                 app.logger.info(f"Exporting {len(evaluations)} evaluations to CSV: {result_path}")
                 batch_evaluator.export_results_to_csv(evaluations, result_path)
@@ -309,29 +309,29 @@ def batch_results(batch_id):
                 with open(result_path, 'w', encoding='utf-8') as f:
                     f.write("response_id,empathy_score,positioning_score,persuasion_score,overall_score,strengths,areas_for_improvement,feedback\n")
                     f.write(f"batch_{batch_id},0,0,0,0,\"No successful evaluations\",\"API errors occurred\",\"The batch processing failed. Please try again with fewer responses or check API quotas.\"\n")
-            
+
             # Update batch info
             batch_jobs[batch_id]['result_path'] = result_path
             batch_jobs[batch_id]['evaluations'] = evaluations
-            
+
             # If no evaluations were successful, add a warning message
             if not evaluations:
                 flash("All evaluation requests in this batch failed. This could be due to API limits or formatting issues.", "warning")
         else:
             # Use cached evaluations if available
             evaluations = batch_jobs[batch_id].get('evaluations', [])
-            
+
             # If we don't have cached evaluations but have a result path, load from CSV
             if not evaluations and os.path.exists(batch['result_path']):
                 # Load evaluations from the CSV
                 df = pd.read_csv(batch['result_path'])
                 evaluations = []
-                
+
                 for _, row in df.iterrows():
                     # Skip the placeholder row if it exists
                     if str(row.get('response_id', '')).startswith('batch_'):
                         continue
-                        
+
                     try:
                         evaluation = Evaluation(
                             empathy_score=float(row['empathy_score']),
@@ -346,14 +346,111 @@ def batch_results(batch_id):
                         evaluations.append(evaluation)
                     except Exception as e:
                         app.logger.error(f"Error parsing evaluation from CSV: {str(e)}")
-                
+
                 batch_jobs[batch_id]['evaluations'] = evaluations
-        
+
         return render_template('batch_results.html', batch=batch, evaluations=evaluations)
     except Exception as e:
         app.logger.error(f"Error getting batch results: {str(e)}", exc_info=True)
         flash(f"Error getting batch results: {str(e)}", "error")
         return redirect(url_for('batch'))
+
+
+@app.route('/print_batch_results/<batch_id>')
+@app.route('/print_batch_results/<batch_id>/<advisor_id>')
+def print_batch_results(batch_id, advisor_id=None):
+    """Display printer-friendly results of a completed batch job, optionally filtered by advisor ID"""
+    if batch_id not in batch_jobs:
+        flash("Batch job not found", "error")
+        return redirect(url_for('batch'))
+
+    batch = batch_jobs[batch_id]
+
+    # Check if we already have results
+    if batch['status'] != 'ended':
+        flash("Batch processing has not completed yet", "warning")
+        return redirect(url_for('batch_status', batch_id=batch_id))
+
+    try:
+        # Load the original CSV to get scenario questions
+        scenarios = {}
+        if os.path.exists(batch['file_path']):
+            try:
+                # Try to read the original CSV to get scenario text
+                if batch['file_path'].endswith(('.xlsx', '.xls')):
+                    df = pd.read_excel(batch['file_path'])
+                else:
+                    df = pd.read_csv(batch['file_path'])
+
+                # Check for special format (scenarios as column headers)
+                scenario_columns = []
+                for col in df.columns:
+                    if isinstance(col, str) and len(col) > 50:
+                        scenario_columns.append(col)
+                        scenarios[str(len(scenarios) + 1)] = col
+
+                # If we found scenario columns, create a map of scenario_id to text
+                if scenario_columns:
+                    for i, col in enumerate(scenario_columns, 1):
+                        scenarios[str(i)] = col
+            except Exception as e:
+                app.logger.error(f"Error loading scenarios from CSV: {str(e)}")
+
+        # Use cached evaluations if available or load from result path
+        evaluations = batch_jobs[batch_id].get('evaluations', [])
+
+        # If no cached evaluations but have a result path, load from CSV
+        if not evaluations and os.path.exists(batch['result_path']):
+            # Load evaluations from the CSV
+            df = pd.read_csv(batch['result_path'])
+            evaluations = []
+
+            for _, row in df.iterrows():
+                # Skip placeholder rows
+                if str(row.get('response_id', '')).startswith('batch_'):
+                    continue
+
+                try:
+                    evaluation = Evaluation(
+                        empathy_score=float(row['empathy_score']),
+                        positioning_score=float(row['positioning_score']),
+                        persuasion_score=float(row['persuasion_score']),
+                        overall_score=float(row['overall_score']),
+                        strengths=str(row['strengths']).split('; '),
+                        areas_for_improvement=str(row['areas_for_improvement']).split('; '),
+                        feedback=str(row['feedback']),
+                        response_id=str(row['response_id'])
+                    )
+                    evaluations.append(evaluation)
+                except Exception as e:
+                    app.logger.error(f"Error parsing evaluation from CSV: {str(e)}")
+
+        # Group evaluations by advisor ID if available
+        grouped_evaluations = {}
+        for eval in evaluations:
+            # Extract advisor ID from response_id if possible
+            parts = eval.response_id.split('_', 1)
+            eval_advisor_id = parts[0] if len(parts) > 1 else 'unknown'
+
+            if eval_advisor_id not in grouped_evaluations:
+                grouped_evaluations[eval_advisor_id] = []
+
+            grouped_evaluations[eval_advisor_id].append(eval)
+
+        # If advisor_id is specified, filter to just that advisor's evaluations
+        advisor_evals = grouped_evaluations.get(advisor_id, []) if advisor_id else []
+
+        return render_template('print_view.html',
+                               batch=batch,
+                               evaluations=evaluations,
+                               grouped_evaluations=grouped_evaluations,
+                               advisor_id=advisor_id,
+                               advisor_evals=advisor_evals,
+                               scenarios=scenarios)
+    except Exception as e:
+        app.logger.error(f"Error preparing print view: {str(e)}", exc_info=True)
+        flash(f"Error preparing print view: {str(e)}", "error")
+        return redirect(url_for('batch_results', batch_id=batch_id))
 
 @app.route('/download_results/<batch_id>')
 def download_results(batch_id):

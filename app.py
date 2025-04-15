@@ -372,27 +372,40 @@ def print_batch_results(batch_id, advisor_id=None):
         return redirect(url_for('batch_status', batch_id=batch_id))
 
     try:
-        # Load the original CSV to get scenario questions
+        # Load the original CSV to get scenario questions and responses
         scenarios = {}
+        original_responses = {}
+
         if os.path.exists(batch['file_path']):
             try:
-                # Try to read the original CSV to get scenario text
+                # Try to read the original CSV to get scenario text and responses
                 if batch['file_path'].endswith(('.xlsx', '.xls')):
                     df = pd.read_excel(batch['file_path'])
                 else:
                     df = pd.read_csv(batch['file_path'])
 
-                # Check for special format (scenarios as column headers)
+                # Find the scenario columns - they start at index 6 based on your CSV structure
                 scenario_columns = []
-                for col in df.columns:
-                    if isinstance(col, str) and len(col) > 50:
-                        scenario_columns.append(col)
-                        scenarios[str(len(scenarios) + 1)] = col
+                scenario_start_index = 6  # Adjust this if needed
 
-                # If we found scenario columns, create a map of scenario_id to text
-                if scenario_columns:
-                    for i, col in enumerate(scenario_columns, 1):
-                        scenarios[str(i)] = col
+                for i, col in enumerate(df.columns):
+                    if i >= scenario_start_index and isinstance(col, str) and len(col) > 50:
+                        scenario_id = str(i - scenario_start_index + 1)  # Creating scenario IDs like "1", "2", etc.
+                        scenario_columns.append((scenario_id, col))
+                        scenarios[scenario_id] = col
+
+                # Extract responses for each employee and scenario
+                for _, row in df.iterrows():
+                    emp_id = str(row.get('Id', 'unknown'))
+
+                    if emp_id not in original_responses:
+                        original_responses[emp_id] = {}
+
+                    # For each scenario column, store the response
+                    for scenario_id, col_name in scenario_columns:
+                        if col_name in row and pd.notna(row[col_name]) and row[col_name]:
+                            original_responses[emp_id][scenario_id] = row[col_name]
+
             except Exception as e:
                 app.logger.error(f"Error loading scenarios from CSV: {str(e)}")
 
@@ -429,6 +442,7 @@ def print_batch_results(batch_id, advisor_id=None):
         grouped_evaluations = {}
         for eval in evaluations:
             # Extract advisor ID from response_id if possible
+            # Assuming response_id format is "employeeId_scenarioId"
             parts = eval.response_id.split('_', 1)
             eval_advisor_id = parts[0] if len(parts) > 1 else 'unknown'
 
@@ -446,7 +460,8 @@ def print_batch_results(batch_id, advisor_id=None):
                                grouped_evaluations=grouped_evaluations,
                                advisor_id=advisor_id,
                                advisor_evals=advisor_evals,
-                               scenarios=scenarios)
+                               scenarios=scenarios,
+                               original_responses=original_responses)
     except Exception as e:
         app.logger.error(f"Error preparing print view: {str(e)}", exc_info=True)
         flash(f"Error preparing print view: {str(e)}", "error")

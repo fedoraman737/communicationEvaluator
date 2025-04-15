@@ -5,218 +5,245 @@
 {% block styles %}
 {{ super() }}
 <style>
-    /* Full width display */
     .container-fluid {
         width: 100vw;
         max-width: 100%;
         padding: 20px;
-    }
-
-    /* Print optimizations */
-    @media print {
-        .no-print { display: none !important; }
-        .page-break { page-break-after: always; }
-        body {
-            font-size: 12pt;
-            width: 100%;
-            margin: 0;
-            padding: 0;
-        }
-        .card {
-            border: 1px solid #ddd;
-            margin-bottom: 20px;
-            page-break-inside: avoid;
-            width: 100%;
-        }
-        table {
-            width: 100%;
-            page-break-inside: avoid;
-        }
-        .card-header {
-            background-color: #f0f7ff !important;
-            color: #000 !important;
-            border-bottom: 2px solid #3a86ff !important;
-        }
-        /* Remove shadows for better printing */
-        .shadow-sm { box-shadow: none !important; }
-
-        /* Ensure all backgrounds print */
-        * {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-        }
-    }
-
-    /* Modern, clean design elements */
-    body {
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        background-color: #f8f9fa;
+        font-family: 'Segoe UI', Arial, sans-serif;
         color: #333;
     }
 
-    .container-fluid {
-        background-color: white;
-        box-shadow: 0 0 15px rgba(0,0,0,0.05);
-        border-radius: 8px;
+    .report-header {
+        margin-bottom: 2.5rem;
+        border-bottom: 2px solid #3a5a78;
+        padding-bottom: 15px;
     }
 
-    /* Ensure tables take full width */
-    .table {
+    .report-header h1 {
+        color: #2c3e50;
+        font-weight: 600;
+        font-size: 28px;
+    }
+
+    .card {
         width: 100%;
-        border-collapse: separate;
-        border-spacing: 0;
+        border-radius: 6px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        margin-bottom: 25px;
+        border: 1px solid #e0e0e0;
     }
 
-    .table th {
-        background-color: #f0f7ff;
-        color: #2d62a3;
+    .card-header {
+        background-color: #f8f9fa;
+        padding: 12px 16px;
+        border-bottom: 1px solid #e0e0e0;
+    }
+
+    .card-header h2, .card-header h5 {
+        margin: 0;
+        color: #2c3e50;
         font-weight: 600;
     }
 
-    .table td, .table th {
-        padding: 12px;
+    .card-body {
+        padding: 16px;
     }
 
-    /* Equal column widths in score tables */
+    .table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .table th, .table td {
+        padding: 10px;
+        border: 1px solid #dee2e6;
+    }
+
+    .table thead th {
+        background-color: #f2f6f9;
+        color: #2c3e50;
+        font-weight: 600;
+        text-align: center;
+    }
+
+    .table tbody tr:nth-child(even) {
+        background-color: #f9fbfd;
+    }
+
     .score-table th, .score-table td {
         width: 20%;
         text-align: center;
     }
 
-    /* Score highlighting */
-    .score-value {
-        font-size: 1.2rem;
-        font-weight: bold;
+    .scenario-box, .response-box {
+        background-color: #f8f9fa;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        padding: 16px;
+        margin-bottom: 18px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     }
 
-    /* Make cards full width with better styling */
-    .card {
-        width: 100%;
-        border-radius: 8px;
-        overflow: hidden;
-        border: none;
-        box-shadow: 0 0 10px rgba(0,0,0,0.05);
-        margin-bottom: 1.5rem;
+    .scenario-box {
+        background-color: #f2f6f9;
+        border-left: 4px solid #3a5a78;
     }
 
-    .card-header {
-        background-color: #f0f7ff;
-        color: #2d62a3;
-        font-weight: 600;
-        padding: 12px 20px;
-        border-bottom: 2px solid #3a86ff;
+    .response-box {
+        background-color: #f9f9f9;
+        border-left: 4px solid #5a9078;
     }
 
-    .card-body {
-        padding: 20px;
-    }
-
-    /* Ensure response details have appropriate spacing */
-    .response-detail {
-        margin-bottom: 2rem;
-        border-left: 4px solid #3a86ff;
-    }
-
-    /* Header styling */
-    .report-header {
-        margin-bottom: 2rem;
-        border-bottom: 3px solid #f0f7ff;
-        padding-bottom: 1rem;
-    }
-
-    .report-header h1 {
-        color: #2d62a3;
-        font-weight: 600;
-    }
-
-    /* Feedback sections */
     .strengths-section {
-        border-left: 4px solid #4caf50;
+        border-left: 3px solid #5a9078;
         padding-left: 15px;
     }
 
     .improvement-section {
-        border-left: 4px solid #ff9800;
+        border-left: 3px solid #907a5a;
         padding-left: 15px;
     }
 
-    /* Scenario box */
-    .scenario-box {
-        background-color: #f0f7ff;
-        border-radius: 8px;
-        padding: 15px;
-        margin-bottom: 20px;
-        border-left: 4px solid #3a86ff;
-    }
-
-    .scenario-title {
-        font-weight: 600;
-        color: #2d62a3;
-        margin-bottom: 8px;
-    }
-
-    /* Response box */
-    .response-box {
+    .feedback-section {
+        margin-top: 15px;
+        padding: 12px;
         background-color: #f9f9f9;
-        border-radius: 8px;
-        padding: 15px;
-        margin-bottom: 20px;
-        border-left: 4px solid #6c757d;
+        border-radius: 5px;
     }
 
-    .response-title {
-        font-weight: 600;
-        color: #6c757d;
-        margin-bottom: 8px;
+    .response-detail {
+        margin-bottom: 2.5rem;
+        border-bottom: 1px dashed #ddd;
+        padding-bottom: 20px;
     }
 
-    /* Page header */
-    .page-header {
-        text-align: center;
-        margin-bottom: 30px;
+    .response-detail:last-child {
+        border-bottom: none;
     }
 
-    .company-name {
-        font-size: 1.2rem;
-        color: #6c757d;
+    /* List styling */
+    ul {
+        padding-left: 20px;
     }
 
-    /* Score indicators */
-    .score-indicator {
-        display: inline-block;
-        width: 40px;
-        height: 40px;
-        line-height: 40px;
-        text-align: center;
-        border-radius: 50%;
-        font-weight: bold;
-        color: white;
-        margin-right: 10px;
+    ul li {
+        margin-bottom: 5px;
     }
 
-    .score-high {
-        background-color: #4caf50;
+    /* Button styling */
+    .btn-primary {
+        background-color: #3a5a78;
+        border-color: #3a5a78;
     }
 
-    .score-medium {
-        background-color: #ff9800;
+    .btn-primary:hover {
+        background-color: #2c4a68;
+        border-color: #2c4a68;
     }
 
-    .score-low {
-        background-color: #f44336;
+    .btn-secondary {
+        background-color: #6c757d;
+        border-color: #6c757d;
+    }
+
+    .alert-info {
+        background-color: #e8f4ff;
+        border-color: #bedcf3;
+        color: #1e608a;
+    }
+
+    .list-group-item {
+        border: 1px solid #e0e0e0;
+        margin-bottom: 5px;
+        transition: background-color 0.2s;
+    }
+
+    .list-group-item:hover {
+        background-color: #f2f6f9;
+    }
+
+    @media print {
+        .no-print {
+            display: none !important;
+        }
+
+        .page-break {
+            page-break-after: always;
+        }
+
+        body {
+            font-size: 11pt;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            color: #000;
+        }
+
+        .card {
+            border: 1px solid #ddd;
+            margin-bottom: 20px;
+            page-break-inside: avoid;
+            width: 100%;
+            box-shadow: none !important;
+        }
+
+        table {
+            width: 100%;
+            page-break-inside: avoid;
+            border-collapse: collapse;
+        }
+
+        .card-header {
+            background-color: #f8f9fa !important;
+            color: #000 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .scenario-box, .response-box {
+            background-color: #f8f9fa !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+            box-shadow: none !important;
+        }
+
+        .table thead th {
+            background-color: #f2f6f9 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .table tbody tr:nth-child(even) {
+            background-color: #f9fbfd !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .report-header {
+            border-bottom: 2px solid #3a5a78 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        * {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        h1, h2, h3, h4, h5, h6,
+        .scenario-box, .response-box,
+        .strengths-section, .improvement-section,
+        .feedback-section {
+            page-break-inside: avoid;
+        }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid py-4">
-    <div class="page-header">
-        <div class="company-name">Communication Evaluator</div>
-        <h1>Performance Evaluation Report</h1>
-    </div>
-
+<div class="container-fluid">
     <div class="report-header d-flex justify-content-between align-items-center">
-        <h2>Communication Assessment Results</h2>
+        <h1>Communication Evaluation Results</h1>
         <button class="btn btn-primary no-print" onclick="window.print()">
             <i class="bi bi-printer"></i> Print
         </button>
@@ -224,7 +251,7 @@
 
     <div class="card mb-4">
         <div class="card-header">
-            <h3 class="mb-0 h5">Batch Information</h3>
+            <h2 class="mb-0 h5">Batch Information</h2>
         </div>
         <div class="card-body">
             <div class="row">
@@ -238,7 +265,7 @@
     {% if advisor_id %}
     <div class="card mb-4">
         <div class="card-header">
-            <h3 class="mb-0 h5">Results for Employee: {{ advisor_id }}</h3>
+            <h2 class="mb-0 h5">Results for Employee: {{ advisor_id }}</h2>
         </div>
         <div class="card-body">
             <table class="table table-bordered score-table">
@@ -255,107 +282,60 @@
                     {% for eval in advisor_evals %}
                     <tr>
                         <td>{{ eval.response_id }}</td>
-                        <td>
-                            <span class="score-indicator {% if eval.empathy_score >= 8 %}score-high{% elif eval.empathy_score >= 6 %}score-medium{% else %}score-low{% endif %}">
-                                {{ eval.empathy_score }}
-                            </span>
-                        </td>
-                        <td>
-                            <span class="score-indicator {% if eval.positioning_score >= 8 %}score-high{% elif eval.positioning_score >= 6 %}score-medium{% else %}score-low{% endif %}">
-                                {{ eval.positioning_score }}
-                            </span>
-                        </td>
-                        <td>
-                            <span class="score-indicator {% if eval.persuasion_score >= 8 %}score-high{% elif eval.persuasion_score >= 6 %}score-medium{% else %}score-low{% endif %}">
-                                {{ eval.persuasion_score }}
-                            </span>
-                        </td>
-                        <td>
-                            <span class="score-indicator {% if eval.overall_score >= 8 %}score-high{% elif eval.overall_score >= 6 %}score-medium{% else %}score-low{% endif %}">
-                                {{ eval.overall_score }}
-                            </span>
-                        </td>
+                        <td>{{ eval.empathy_score }}</td>
+                        <td>{{ eval.positioning_score }}</td>
+                        <td>{{ eval.persuasion_score }}</td>
+                        <td>{{ eval.overall_score }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
 
-            <h3 class="h5 mt-5 mb-4">Detailed Feedback</h3>
-            {% for eval in advisor_evals %}
-            <div class="card mt-4 response-detail">
-                <div class="card-header">
-                    <h4 class="mb-0 h6">Response {{ eval.response_id }}</h4>
-                </div>
-                <div class="card-body">
-                    {% set scenario_id = eval.response_id.split('_')[1]|default('1') if '_' in eval.response_id else '1' %}
+            <h3 class="h6 mt-4">Detailed Feedback</h3>
+                {% for eval in advisor_evals %}
+                <div class="card mt-3 response-detail">
+                    <div class="card-body">
+                        <h4 class="h6">Response {{ eval.response_id }}</h4>
 
-                    {% if scenarios and scenario_id in scenarios %}
-                    <div class="scenario-box">
-                        <div class="scenario-title">Scenario:</div>
-                        <div>{{ scenarios[scenario_id] }}</div>
-                    </div>
-                    {% endif %}
+                        {% set parts = eval.response_id.split('_') %}
+                        {% set scenario_id = parts[1] if parts|length > 1 else '1' %}
 
-                    <div class="row mt-4">
-                        <div class="col-md-6">
-                            <div class="strengths-section">
-                                <h5>Strengths:</h5>
-                                <ul class="list-group list-group-flush">
+                        {% if scenarios and scenario_id in scenarios %}
+                        <div class="scenario-box">
+                            <p><strong>Scenario Question:</strong></p>
+                            <p>{{ scenarios[scenario_id] }}</p>
+                        </div>
+                        {% endif %}
+
+                        {% if advisor_id in original_responses and scenario_id in original_responses[advisor_id] %}
+                        <div class="response-box">
+                            <p><strong>Employee Response:</strong></p>
+                            <p>{{ original_responses[advisor_id][scenario_id] }}</p>
+                        </div>
+                        {% endif %}
+
+                        <div class="row mt-4">
+                            <div class="col-md-6">
+                                <p><strong>Strengths:</strong></p>
+                                <ul>
                                     {% for strength in eval.strengths %}
-                                    <li class="list-group-item border-0 ps-0">{{ strength }}</li>
+                                    <li>{{ strength }}</li>
                                     {% endfor %}
                                 </ul>
                             </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="improvement-section">
-                                <h5>Areas for Improvement:</h5>
-                                <ul class="list-group list-group-flush">
+                            <div class="col-md-6">
+                                <p><strong>Areas for Improvement:</strong></p>
+                                <ul>
                                     {% for area in eval.areas_for_improvement %}
-                                    <li class="list-group-item border-0 ps-0">{{ area }}</li>
+                                    <li>{{ area }}</li>
                                     {% endfor %}
                                 </ul>
                             </div>
                         </div>
-                    </div>
-
-                    <div class="mt-4">
-                        <h5>Expert Feedback:</h5>
-                        <p class="p-3 bg-light rounded">{{ eval.feedback }}</p>
-                    </div>
-
-                    <div class="mt-4">
-                        <h5>Score Breakdown:</h5>
-                        <div class="row text-center">
-                            <div class="col-md-3">
-                                <div class="score-indicator {% if eval.empathy_score >= 8 %}score-high{% elif eval.empathy_score >= 6 %}score-medium{% else %}score-low{% endif %}">
-                                    {{ eval.empathy_score }}
-                                </div>
-                                <div>Empathy</div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="score-indicator {% if eval.positioning_score >= 8 %}score-high{% elif eval.positioning_score >= 6 %}score-medium{% else %}score-low{% endif %}">
-                                    {{ eval.positioning_score }}
-                                </div>
-                                <div>Positioning</div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="score-indicator {% if eval.persuasion_score >= 8 %}score-high{% elif eval.persuasion_score >= 6 %}score-medium{% else %}score-low{% endif %}">
-                                    {{ eval.persuasion_score }}
-                                </div>
-                                <div>Persuasion</div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="score-indicator {% if eval.overall_score >= 8 %}score-high{% elif eval.overall_score >= 6 %}score-medium{% else %}score-low{% endif %}">
-                                    {{ eval.overall_score }}
-                                </div>
-                                <div>Overall</div>
-                            </div>
-                        </div>
+                        <p><strong>Feedback:</strong> {{ eval.feedback }}</p>
                     </div>
                 </div>
-            </div>
-            {% endfor %}
+                {% endfor %}
         </div>
     </div>
     {% else %}
@@ -366,16 +346,13 @@
     {% if grouped_evaluations %}
     <div class="no-print card mb-4">
         <div class="card-header">
-            <h3 class="mb-0 h5">Available Employee Reports</h3>
+            <h2 class="mb-0 h5">Available Employee Reports</h2>
         </div>
         <div class="card-body">
             <div class="list-group">
                 {% for emp_id in grouped_evaluations.keys() %}
                 <a href="{{ url_for('print_batch_results', batch_id=batch.id, advisor_id=emp_id) }}" class="list-group-item list-group-item-action">
-                    <div class="d-flex w-100 justify-content-between">
-                        <h5 class="mb-1">Employee: {{ emp_id }}</h5>
-                        <span class="badge bg-primary rounded-pill">{{ grouped_evaluations[emp_id]|length }} responses</span>
-                    </div>
+                    Employee: {{ emp_id }} ({{ grouped_evaluations[emp_id]|length }} responses)
                 </a>
                 {% endfor %}
             </div>

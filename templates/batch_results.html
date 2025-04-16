@@ -141,6 +141,9 @@
         <div class="d-grid gap-2 d-md-flex justify-content-md-between">
             <a href="{{ url_for('batch') }}" class="btn btn-secondary">Back to Batch List</a>
             {% if evaluations|length > 0 %}
+            <a href="{{ url_for('print_batch_results', batch_id=batch.id) }}" class="btn btn-primary" target="_blank">
+                <i class="bi bi-printer"></i> Print View
+            </a>
             <a href="{{ url_for('download_results', batch_id=batch.id) }}" class="btn btn-success">Download Results</a>
             {% endif %}
         </div>

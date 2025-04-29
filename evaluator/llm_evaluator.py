@@ -1,302 +1,235 @@
-import os
-from typing import Dict, List, Any, Union
-import json
 import logging
-import openai
-import anthropic
+import json
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, Any
+
+import torch
 from dotenv import load_dotenv
+from transformers import (
+    AutoTokenizer,
+    AutoModelForCausalLM,
+    BitsAndBytesConfig,
+)
 
 from models.response import Response
 from models.evaluation import Evaluation
 
-# logging for debug -- disable in production
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
-# Load environment variables
+# ──────────────────── configurable flags ────────────────────
+USE_4BIT = True          # toggle 4-bit quantisation
+NUM_BEAMS = 2            # beam count for generation
+# ─────────────────────────────────────────────────────────────
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 load_dotenv()
 
-# Monkey patch the Anthropic library to fix the proxies issue
-try:
-    import anthropic._base_client
-    
-    # Store the original wrapper
-    original_wrapper = anthropic._base_client.SyncHttpxClientWrapper
-    
-    # Create a modified wrapper that doesn't pass proxies
-    class CustomHttpxWrapper(original_wrapper):
-        def __init__(self, *args, **kwargs):
-            # Remove proxies from kwargs if present
-            if 'proxies' in kwargs:
-                del kwargs['proxies']
-            super().__init__(*args, **kwargs)
-    
-    # Replace the original wrapper with our custom one
-    anthropic._base_client.SyncHttpxClientWrapper = CustomHttpxWrapper
-    
-    logger.info("Successfully patched Anthropic library")
-except Exception as e:
-    logger.error(f"Failed to patch Anthropic library: {e}")
-
-#TODO: Implement batch processing of responses via Anthropic batch processing API
-#TODO: Ensure that there is a way to track the status of the batch processing
 
 class LLMEvaluator:
-    """
-    Class for evaluating advisor responses using LLMs.
-    """
-    
-    def __init__(self, test_mode=False):
-        """Initialize the LLM evaluator with the configured provider.
-        
-        Args:
-            test_mode: If True, will not raise errors for missing API keys
-        """
-        self.provider = os.getenv('LLM_PROVIDER', 'openai')
-        # Default model names based on provider
-        if self.provider == 'anthropic':
-            self.model_name = os.getenv('MODEL_NAME', 'claude-3-7-sonnet-20250219')
-        else:
-            self.model_name = os.getenv('MODEL_NAME', 'gpt-4o')
+    """Evaluate advisor responses with the locally stored DeepSeek-Chat model."""
+
+    def __init__(self, test_mode: bool = False):
         self.test_mode = test_mode
-        
-        # initialize clients based on provider
-        if self.provider == 'openai':
-            openai.api_key = os.getenv('OPENAI_API_KEY')
-            if not openai.api_key and not self.test_mode:
-                raise ValueError("OpenAI API key not found in environment variables")
-            self.client = openai.Client() if openai.api_key else None
-        elif self.provider == 'anthropic':
-            anthropic_api_key = os.getenv('ANTHROPIC_API_KEY')
-            if not anthropic_api_key and not self.test_mode:
-                raise ValueError("Anthropic API key not found in environment variables")
-            
-            # Initialize Anthropic client using standard approach now that we've patched the library
-            if anthropic_api_key:
-                try:
-                    # Use latest supported version for batch processing
-                    anthropic_version = os.getenv('ANTHROPIC_API_VERSION', '2023-06-01')
-                    self.client = anthropic.Anthropic(
-                        api_key=anthropic_api_key,
-                        default_headers={"anthropic-version": anthropic_version}
-                    )
-                    logger.info(f"Successfully initialized Anthropic client with API version: {anthropic_version}")
-                except Exception as e:
-                    logger.error(f"Error initializing Anthropic client: {str(e)}")
-                    if not self.test_mode:
-                        raise
-                    self.client = None
-            else:
-                self.client = None
+        self.model = None
+        self.tokenizer = None
+        if not self.test_mode:
+            self._load_model()
+
+    # ─────────────── model loading ───────────────
+    def _load_model(self) -> None:
+        model_path = Path("models/deepseek")
+        if not model_path.exists():
+            raise FileNotFoundError(
+                "DeepSeek model not found. Run download_model.py first."
+            )
+
+        logger.info("Loading DeepSeek-Chat model from %s", model_path)
+
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            str(model_path), trust_remote_code=True
+        )
+
+        if USE_4BIT:
+            qcfg = BitsAndBytesConfig(
+                load_in_4bit=True,
+                bnb_4bit_compute_dtype=torch.float16,
+                bnb_4bit_use_double_quant=True,
+            )
+            self.model = AutoModelForCausalLM.from_pretrained(
+                str(model_path),
+                device_map="auto",
+                quantization_config=qcfg,
+                use_cache=True,
+            )
         else:
-            raise ValueError(f"Unsupported LLM provider: {self.provider}")
-        
-        logger.info(f"Initialized LLMEvaluator with provider: {self.provider}, model: {self.model_name}, test_mode: {test_mode}")
-    
+            self.model = AutoModelForCausalLM.from_pretrained(
+                str(model_path),
+                torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
+                low_cpu_mem_usage=True,
+                device_map="auto",
+                use_cache=True,
+            )
+
+        logger.info("DeepSeek-Chat model loaded (device=%s)", self.model.device)
+
+    # ─────────────── public API ───────────────
     def evaluate_response(self, response: Response) -> Evaluation:
-        """
-        Evaluate an advisor's response using the configured LLM.
-        
-        Args:
-            response: The Response object containing the advisor's response text
-            
-        Returns:
-            An Evaluation object with scores and feedback
-        """
-        logger.info(f"Evaluating response ID: {response.id}")
-        
-        # If in test mode and no API key is available, return a mock evaluation
-        if self.test_mode and (not hasattr(self, 'client') or self.client is None):
-            logger.info("Using mock evaluation for test mode")
-            return Evaluation(
-                empathy_score=8.5,
-                positioning_score=7.5,
-                persuasion_score=6.5,
-                overall_score=7.5,
-                strengths=["Acknowledges customer frustration", "Offers alternative solutions"],
-                areas_for_improvement=["Could improve tone", "More proactive problem-solving"],
-                feedback="Good empathy in acknowledging customer frustration. Consider offering more specific alternatives.",
-                response_id=response.id
-            )
-        
-        evaluation_prompt = self._create_evaluation_prompt(response)
-        
-        try:
-            # Get evaluation from LLM
-            if self.provider == 'openai':
-                evaluation_result = self._evaluate_with_openai(evaluation_prompt)
-            elif self.provider == 'anthropic':
-                evaluation_result = self._evaluate_with_anthropic(evaluation_prompt)
-            else:
-                raise ValueError(f"Unsupported LLM provider: {self.provider}")
-            
-            # Create and return evaluation object
-            evaluation = Evaluation(
-                empathy_score=evaluation_result['empathy_score'],
-                positioning_score=evaluation_result['positioning_score'],
-                persuasion_score=evaluation_result['persuasion_score'],
-                overall_score=evaluation_result['overall_score'],
-                strengths=evaluation_result['strengths'],
-                areas_for_improvement=evaluation_result['areas_for_improvement'],
-                feedback=evaluation_result['feedback'],
-                response_id=response.id
-            )
-            
-            logger.info(f"Evaluation complete for response ID: {response.id}")
-            return evaluation
-            
-        except Exception as e:
-            logger.error(f"Error evaluating response: {str(e)}")
-            # Return a default evaluation in case of error
-            # we should probably change this to a more specific error message -- but this is a good fallback for now. - TheHellSpy
-            return Evaluation(
-                empathy_score=5.0,
-                positioning_score=5.0,
-                persuasion_score=5.0,
-                overall_score=5.0,
-                strengths=["Unable to evaluate strengths due to an error"],
-                areas_for_improvement=["Unable to evaluate areas for improvement due to an error"],
-                feedback="There was an error processing your response. Please try again later.",
-                response_id=response.id
-            )
-    
+        if self.test_mode:
+            return self._generate_test_evaluation(response)
+
+        prompt = self._create_evaluation_prompt(response)
+        evaluation_dict = self._evaluate_with_model(prompt)
+
+        return Evaluation(
+            response_id=response.id,
+            empathy_score=evaluation_dict["empathy_score"],
+            positioning_score=evaluation_dict["positioning_score"],
+            persuasion_score=evaluation_dict["persuasion_score"],
+            overall_score=evaluation_dict["overall_score"],
+            strengths=evaluation_dict["strengths"],
+            areas_for_improvement=evaluation_dict["areas_for_improvement"],
+            feedback=evaluation_dict["feedback"],
+            created_at=datetime.now(),
+        )
+
+    # ─────────────── prompt construction ───────────────
     def _create_evaluation_prompt(self, response: Response) -> str:
-        """
-        Create the prompt for the LLM to evaluate the response.
-        
-        Args:
-            response: The Response object containing the advisor's response text
-            
-        Returns:
-            A string containing the evaluation prompt
-        """
-        # Check if scenario information is included in the response ID (from batch processing)
         scenario_description = ""
-        response_id_parts = response.id.split("||", 1) if "||" in str(response.id) else [response.id]
-        
-        if len(response_id_parts) > 1:
-            # Extract the real response ID and scenario text
-            real_response_id = response_id_parts[0]
-            scenario_description = response_id_parts[1]
-            # Update the response ID to the real one
-            response.id = real_response_id
-        
-        # Sanitize the response text to ensure it's clean
-        response_text = response.text
-        if isinstance(response_text, str):
-            # Replace smart quotes and other problematic characters
-            response_text = response_text.replace(''', "'").replace(''', "'").replace('"', '"').replace('"', '"')
-            response_text = response_text.replace('–', '-').replace('—', '-')
-        
-        # Create the prompt
-        prompt = f"""You are a communication skills expert tasked with evaluating an advisor's response to a customer scenario. Your job is to analyze the response and provide scores and feedback on three key communication domains:
+        parts = str(response.id).split("||", 1) if "||" in str(response.id) else [response.id]
+        if len(parts) > 1:
+            response.id, scenario_description = parts
 
-1. Empathy: How well does the advisor acknowledge and connect with the customer's emotions?
-2. Positioning: How effectively does the advisor balance positive and negative sentiments, maintaining an appropriate tone?
-3. Persuasion: How well does the advisor use persuasion techniques like foot-in-the-door, yes-set, social proof, and reciprocity?
+        response_text = (
+            response.text.replace("\u2018", "'")
+            .replace("\u2019", "'")
+            .replace("\u201c", '"')
+            .replace("\u201d", '"')
+        )
 
-"""
-        
-        # Add scenario information
-        if scenario_description:
-            prompt += f"Customer Scenario: \"{scenario_description}\"\n"
-        else:
-            prompt += f"Customer Scenario ID: {response.scenario_id}\n"
-            
-        prompt += f"Advisor Response: \"{response_text}\"\n\n"
-        
-        prompt += """Please evaluate the response and provide the following:
-1. Empathy Score (0-10): 
-2. Positioning Score (0-10): 
-3. Persuasion Score (0-10): 
-4. Overall Score (0-10): 
-5. Strengths (list 2-3 key strengths): 
-6. Areas for Improvement (list 2-3 specific areas): 
-7. Personalized Feedback (2-3 sentences of actionable advice): 
+        rubric = (
+            "Use this scoring scale rigorously:\n"
+            "0–1  Unacceptable: harms rapport or violates policy\n"
+            "2–3  Very poor: little empathy or assistance\n"
+            "4–5  Adequate: meets bare minimum, no extra effort\n"
+            "6–7  Good: meets needs with some empathy/persuasion\n"
+            "8–9  Excellent: proactive, highly empathetic & persuasive\n"
+            "10   Outstanding: textbook perfect\n\n"
+            "A curt policy-only refusal like the one below should score 1–2 overall.\n"
+        )
 
-Format your response as a JSON object with the following keys: empathy_score, positioning_score, persuasion_score, overall_score, strengths (array), areas_for_improvement (array), and feedback (string).
-"""
-        return prompt
-    
-    def _evaluate_with_openai(self, prompt: str) -> Dict[str, Any]:
-        """
-        Evaluate a response using OpenAI's API.
-        
-        Args:
-            prompt: The evaluation prompt
-            
-        Returns:
-            A dictionary containing the evaluation results
-        """
-        try:
-            response = self.client.chat.completions.create(
-                model=self.model_name,
-                messages=[
-                    {"role": "system", "content": "You are a communication skills expert who evaluates customer service responses."},
-                    {"role": "user", "content": prompt}
-                ],
-                response_format={"type": "json_object"}
+        header = (
+            "You are an expert communication-skills evaluator. Analyse the "
+            "following customer-service interaction and return *only JSON*.\n"
+        )
+
+        scenario_block = (
+            f'Customer Scenario: "{scenario_description}"\n'
+            if scenario_description
+            else f"Customer Scenario ID: {response.scenario_id}\n"
+        )
+
+        body = (
+            f'{scenario_block}'
+            f'Advisor Response: "{response_text}"\n\n'
+            "Return strictly valid JSON using this schema:\n"
+            "{\n"
+            '  "empathy_score": <0-10>,\n'
+            '  "positioning_score": <0-10>,\n'
+            '  "persuasion_score": <0-10>,\n'
+            '  "overall_score": <0-10>,\n'
+            '  "strengths": ["bullet #1", "bullet #2", "..."],\n'
+            '  "areas_for_improvement": ["bullet #1", "bullet #2", "..."],\n'
+            '  "feedback": "A **minimum of 150 words** over at least three '
+            'paragraphs. In the first paragraph, justify each numeric score '
+            'by quoting or paraphrasing specific phrases the advisor used. '
+            'In the second, propose concrete alternative wording the advisor '
+            'could use to improve empathy, positioning, and persuasion. '
+            'In the third, summarise key takeaways in plain language."\n'
+            "}"
+        )
+
+        return header + rubric + body
+
+    # ─────────────── model call ───────────────
+    def _evaluate_with_model(self, prompt: str) -> Dict[str, Any]:
+        messages = [{"role": "user", "content": prompt}]
+
+        input_ids = self.tokenizer.apply_chat_template(
+            messages,
+            add_generation_prompt=True,
+            return_tensors="pt",
+        ).to(self.model.device)
+
+        with torch.no_grad():
+            output_ids = self.model.generate(
+                input_ids,
+                max_new_tokens=768,
+                temperature=0.3,
+                top_k=50,
+                top_p=0.95,
+                num_beams=NUM_BEAMS,
+                pad_token_id=self.tokenizer.eos_token_id,
             )
-            
-            # Parse the JSON response
-            evaluation_result = json.loads(response.choices[0].message.content)
-            return evaluation_result
-            
-        except Exception as e:
-            logger.error(f"Error with OpenAI evaluation: {str(e)}")
-            raise
-    
-    def _evaluate_with_anthropic(self, prompt: str) -> Dict[str, Any]:
-        """
-        Evaluate a response using Anthropic's API.
-        
-        Args:
-            prompt: The evaluation prompt
-            
-        Returns:
-            A dictionary containing the evaluation results
-        """
+
+        generated_tokens = output_ids[0][input_ids.shape[1]:]
+        raw_reply = self.tokenizer.decode(
+            generated_tokens, skip_special_tokens=True
+        ).strip()
+
+        logger.info("\nRAW MODEL REPLY\n%s\n%s", "-" * 80, raw_reply)
+
         try:
-            # System prompt to instruct Claude to evaluate communication
-            system_prompt = "You are a communication skills expert who evaluates customer service responses. Provide your evaluation in valid JSON format."
-            
-            # Following exactly the structure from the documentation
-            message = self.client.messages.create(
-                model=self.model_name,
-                max_tokens=2000,
-                system=system_prompt,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": prompt
-                            }
-                        ]
-                    }
-                ]
-            )
-            
-            # Extract content from the response
-            content = message.content[0].text
-            
-            # Find JSON in the response
-            json_start = content.find('{')
-            json_end = content.rfind('}') + 1
-            
-            if json_start >= 0 and json_end > json_start:
-                json_str = content[json_start:json_end]
-                evaluation_result = json.loads(json_str)
-                return evaluation_result
-            else:
-                # If no JSON object found, try parsing the entire content
+            if raw_reply.startswith("```"):
+                raw_reply = raw_reply.strip("`\n ")
+            result = json.loads(raw_reply)
+
+            defaults = {
+                "empathy_score": 5.0,
+                "positioning_score": 5.0,
+                "persuasion_score": 5.0,
+                "overall_score": 5.0,
+                "strengths": [],
+                "areas_for_improvement": [],
+                "feedback": "",
+            }
+            for k, v in defaults.items():
+                result.setdefault(k, v)
+
+            for key in ["empathy_score", "positioning_score", "persuasion_score", "overall_score"]:
                 try:
-                    evaluation_result = json.loads(content)
-                    return evaluation_result
-                except json.JSONDecodeError:
-                    raise ValueError("Could not find valid JSON in Anthropic response")
-            
-        except Exception as e:
-            logger.error(f"Error with Anthropic evaluation: {str(e)}")
-            raise
+                    result[key] = max(0.0, min(10.0, float(result[key])))
+                except (ValueError, TypeError):
+                    logger.warning("Invalid %s; defaulting to 5", key)
+                    result[key] = 5.0
+
+            return result
+
+        except Exception as exc:
+            logger.error("Failed to parse model JSON: %s", exc)
+            logger.error("Raw reply was:\n%s", raw_reply)
+            return {
+                "empathy_score": 5.0,
+                "positioning_score": 5.0,
+                "persuasion_score": 5.0,
+                "overall_score": 5.0,
+                "strengths": ["Error parsing model reply"],
+                "areas_for_improvement": [
+                    "Ensure the model outputs valid JSON (check prompt formatting)"
+                ],
+                "feedback": "Automatic fallback because the reply was not valid JSON.",
+            }
+
+    # ─────────────── test-mode stub ───────────────
+    def _generate_test_evaluation(self, response: Response) -> Evaluation:
+        return Evaluation(
+            response_id=response.id,
+            empathy_score=7.0,
+            positioning_score=7.0,
+            persuasion_score=7.0,
+            overall_score=7.0,
+            strengths=["Test strength"],
+            areas_for_improvement=["Test area"],
+            feedback="This is a stub evaluation (test_mode=True).",
+            created_at=datetime.now(),
+        )

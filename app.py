@@ -30,19 +30,15 @@ app.config['RESULTS_FOLDER'] = RESULTS_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB max file size
 
 # Initialize the LLM evaluator
-openai_key = os.getenv('OPENAI_API_KEY')
-anthropic_key = os.getenv('ANTHROPIC_API_KEY')
-api_key_available = bool(openai_key or anthropic_key)
-
-# Use actual API calls if key is available
-evaluator = LLMEvaluator(test_mode=not api_key_available)
+test_mode = os.getenv('TEST_MODE', 'False').lower() == 'true'
+evaluator = LLMEvaluator(test_mode=test_mode)
 batch_evaluator = BatchEvaluator(evaluator)
 
 # Log which mode we're using
-if not api_key_available:
-    app.logger.warning("No API keys found. Running in test mode with sample responses.")
+if test_mode:
+    app.logger.warning("Running in test mode with sample responses.")
 else:
-    app.logger.info(f"API key found for provider: {os.getenv('LLM_PROVIDER', 'openai')}. Using actual LLM evaluations.")
+    app.logger.info("Using DeepSeek for evaluations.")
 
 # Store batch jobs in memory (in a real app, this would be in a database)
 batch_jobs = {}
@@ -354,7 +350,6 @@ def batch_results(batch_id):
         app.logger.error(f"Error getting batch results: {str(e)}", exc_info=True)
         flash(f"Error getting batch results: {str(e)}", "error")
         return redirect(url_for('batch'))
-
 
 @app.route('/print_batch_results/<batch_id>')
 @app.route('/print_batch_results/<batch_id>/<advisor_id>')

@@ -20,8 +20,9 @@ wheels/
 .installed.cfg
 *.egg
 
-# Ignore batch files
+# Ignore System & utility files
 *.bat
+*.log
 
 # Environment
 .env

@@ -42,7 +42,7 @@ evaluation_cache: Dict[str, Evaluation] = {}
 if test_mode:
     app.logger.warning("Running in test mode with sample responses.")
 else:
-    app.logger.info("Using DeepSeek for evaluations.")
+    app.logger.info("Using Phi-3 for evaluations.")
 
 # Store batch jobs in memory (in a real app, this would be in a database)
 batch_jobs = {}

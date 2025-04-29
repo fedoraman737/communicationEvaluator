@@ -20,6 +20,9 @@ wheels/
 .installed.cfg
 *.egg
 
+# Ignore batch files
+*.bat
+
 # Environment
 .env
 .venv
@@ -45,6 +48,7 @@ results/
 *.xls
 models/deepseek/
 models/offload/
+models/phi3/
 
 # Unit test / coverage reports
 htmlcov/

@@ -28,7 +28,7 @@ load_dotenv()
 
 
 class LLMEvaluator:
-    """Evaluate advisor responses with the locally stored DeepSeek-Chat model."""
+    """Evaluate advisor responses with the locally stored Microsoft Phi-3 model."""
 
     def __init__(self, test_mode: bool = False):
         self.test_mode = test_mode
@@ -39,13 +39,13 @@ class LLMEvaluator:
 
     # ─────────────── model loading ───────────────
     def _load_model(self) -> None:
-        model_path = Path("models/deepseek")
+        model_path = Path("models/phi3")
         if not model_path.exists():
             raise FileNotFoundError(
-                "DeepSeek model not found. Run download_model.py first."
+                "Phi-3 model not found. Run download_model.py first."
             )
 
-        logger.info("Loading DeepSeek-Chat model from %s", model_path)
+        logger.info("Loading Microsoft Phi-3-mini-4k-instruct model from %s", model_path)
 
         self.tokenizer = AutoTokenizer.from_pretrained(
             str(model_path), trust_remote_code=True
@@ -62,6 +62,7 @@ class LLMEvaluator:
                 device_map="auto",
                 quantization_config=qcfg,
                 use_cache=True,
+                trust_remote_code=True,
             )
         else:
             self.model = AutoModelForCausalLM.from_pretrained(
@@ -70,9 +71,10 @@ class LLMEvaluator:
                 low_cpu_mem_usage=True,
                 device_map="auto",
                 use_cache=True,
+                trust_remote_code=True,
             )
 
-        logger.info("DeepSeek-Chat model loaded (device=%s)", self.model.device)
+        logger.info("Phi-3 model loaded (device=%s)", self.model.device)
 
     # ─────────────── public API ───────────────
     def evaluate_response(self, response: Response) -> Evaluation:
@@ -108,6 +110,7 @@ class LLMEvaluator:
             .replace("\u201d", '"')
         )
 
+        # Format prompt for Phi-3 model
         rubric = (
             "Use this scoring scale rigorously:\n"
             "0–1  Unacceptable: harms rapport or violates policy\n"
@@ -119,6 +122,7 @@ class LLMEvaluator:
             "A curt policy-only refusal like the one below should score 1–2 overall.\n"
         )
 
+        # Phi-3 specific prompt formatting
         header = (
             "You are an expert communication-skills evaluator. Analyse the "
             "following customer-service interaction and return *only JSON*.\n"
@@ -154,8 +158,10 @@ class LLMEvaluator:
 
     # ─────────────── model call ───────────────
     def _evaluate_with_model(self, prompt: str) -> Dict[str, Any]:
+        # Format message for Phi-3
         messages = [{"role": "user", "content": prompt}]
 
+        # Apply chat template - Phi-3 uses a different format than DeepSeek
         input_ids = self.tokenizer.apply_chat_template(
             messages,
             add_generation_prompt=True,

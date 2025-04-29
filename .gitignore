@@ -43,6 +43,8 @@ results/
 *.csv
 *.xlsx
 *.xls
+models/deepseek/
+models/offload/
 
 # Unit test / coverage reports
 htmlcov/

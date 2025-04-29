@@ -6,6 +6,7 @@ from datetime import datetime
 import uuid
 import pandas as pd
 from werkzeug.utils import secure_filename
+from typing import Dict
 
 # Import local modules
 from evaluator.llm_evaluator import LLMEvaluator
@@ -33,6 +34,9 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB max file size
 test_mode = os.getenv('TEST_MODE', 'False').lower() == 'true'
 evaluator = LLMEvaluator(test_mode=test_mode)
 batch_evaluator = BatchEvaluator(evaluator)
+
+# Store evaluations temporarily in memory (replace with DB in production)
+evaluation_cache: Dict[str, Evaluation] = {}
 
 # Log which mode we're using
 if test_mode:
@@ -122,42 +126,38 @@ def submit_response():
     )
     
     # Store this response in the session for use in evaluation_result
-    session['last_response_text'] = response_text
-    session['last_scenario_id'] = scenario_id
-    session['last_advisor_id'] = advisor_id
+    # session['last_response_text'] = response_text # No longer needed
+    # session['last_scenario_id'] = scenario_id   # No longer needed
+    # session['last_advisor_id'] = advisor_id    # No longer needed
     
     # Evaluate the response using the LLM
     evaluation = evaluator.evaluate_response(response)
     
     # In a real application, save to database
-    # For demo, just pass to results page
+    # For demo, store in memory cache
+    evaluation_cache[evaluation.id] = evaluation
+    app.logger.info(f"Stored evaluation {evaluation.id} in cache.")
+    
     return redirect(url_for('evaluation_result', evaluation_id=evaluation.id))
 
 @app.route('/evaluation/<evaluation_id>')
 def evaluation_result(evaluation_id):
     # In a real application, fetch from database
-    # For demo purposes, try to get the response details from the session
-    # If not available, use a placeholder
+    # For demo, retrieve from in-memory cache
+    evaluation = evaluation_cache.get(evaluation_id)
+    
+    if not evaluation:
+        app.logger.error(f"Evaluation ID {evaluation_id} not found in cache.")
+        flash("Evaluation results not found or have expired.", "error")
+        # Try to reconstruct some context if possible, or redirect
+        # For now, redirecting to scenarios might be best
+        return redirect(url_for('scenarios'))
 
-    # Check if we have stored response details
-    response_text = session.get('last_response_text', "This is a placeholder for the actual response that was evaluated.")
-    scenario_id = int(session.get('last_scenario_id', 1))
-    advisor_id = session.get('last_advisor_id', "anonymous")
-    
-    # Create a response object with the actual text if available
-    response = Response(
-        advisor_id=advisor_id,
-        scenario_id=scenario_id,
-        text=response_text,
-        submitted_at=datetime.now()
-    )
-    
-    # Get actual evaluation from the LLM
-    evaluation = evaluator.evaluate_response(response)
-    
-    # Set the passed ID to maintain the route parameter
-    evaluation.id = evaluation_id
-    
+    # We might still want the original response text for display
+    # If needed, store response.text in the cache alongside evaluation or retrieve from DB
+    # For now, we assume the evaluation object has enough info or we don't display original text
+
+    app.logger.info(f"Retrieved evaluation {evaluation_id} from cache.")
     return render_template('evaluation_result.html', evaluation=evaluation)
 
 @app.route('/api/evaluate', methods=['POST'])

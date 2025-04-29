@@ -3,6 +3,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any
+import re
 
 import torch
 from dotenv import load_dotenv
@@ -179,10 +180,22 @@ class LLMEvaluator:
 
         logger.info("\nRAW MODEL REPLY\n%s\n%s", "-" * 80, raw_reply)
 
+        # Clean the raw reply string to handle potential invalid JSON characters
+        # Replace unescaped newlines which can cause json.loads errors
+        cleaned_reply = raw_reply.replace("\\n", "\\\\n")
+
         try:
-            if raw_reply.startswith("```"):
-                raw_reply = raw_reply.strip("`\n ")
-            result = json.loads(raw_reply)
+            # Strip markdown fences if present
+            if cleaned_reply.startswith("```"):
+                # Assuming the JSON content is within the fences
+                json_match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", cleaned_reply, re.IGNORECASE)
+                if json_match:
+                    cleaned_reply = json_match.group(1).strip()
+                else:
+                    # Fallback if regex fails but fences are detected
+                    cleaned_reply = cleaned_reply.strip("`\\n ")
+
+            result = json.loads(cleaned_reply)
 
             defaults = {
                 "empathy_score": 5.0,

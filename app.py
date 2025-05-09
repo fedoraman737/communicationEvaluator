@@ -12,6 +12,7 @@ from typing import Dict
 from models.scenario import Scenario
 from models.response import Response
 from models.evaluation import Evaluation
+from evaluator.rule_based_evaluator import RuleBasedEvaluator
 
 # Load environment variables
 load_dotenv()
@@ -28,22 +29,11 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['RESULTS_FOLDER'] = RESULTS_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB max file size
 
-# Initialize the LLM evaluator
-# test_mode = os.getenv('TEST_MODE', 'False').lower() == 'true' # No longer needed
-# evaluator = LLMEvaluator(test_mode=test_mode) # No longer needed
-# batch_evaluator = BatchEvaluator(evaluator) # No longer needed
+# Initialize the RuleBasedEvaluator
+evaluator = RuleBasedEvaluator()
 
-# Store evaluations temporarily in memory (replace with DB in production)
-# evaluation_cache: Dict[str, Evaluation] = {} # No longer needed
-
-# Log which mode we're using
-# if test_mode: # No longer needed
-#     app.logger.warning("Running in test mode with sample responses.") # No longer needed
-# else: # No longer needed
-#     app.logger.info("Using DeepSeek for evaluations.") # No longer needed
-
-# Store batch jobs in memory (in a real app, this would be in a database)
-# batch_jobs = {} # No longer needed
+# Store evaluations temporarily in memory
+evaluation_cache: Dict[str, Evaluation] = {}
 
 @app.route('/')
 def index():
@@ -105,7 +95,46 @@ def scenario_detail(scenario_id):
     
     return render_template('scenario_detail.html', scenario=scenario)
 
-# All routes related to submission, evaluation, and batch processing will be removed.
+@app.route('/submit_response', methods=['POST'])
+def submit_response():
+    scenario_id = request.form.get('scenario_id')
+    advisor_id = request.form.get('advisor_id', 'default_advisor')
+    response_text = request.form.get('response_text')
+    
+    if not all([scenario_id, response_text]):
+        flash("Scenario ID and Response Text are required", "error")
+        if scenario_id:
+            return redirect(url_for('scenario_detail', scenario_id=int(scenario_id)))
+        else:
+            return redirect(url_for('scenarios'))
+    
+    response_internal_id = f"{advisor_id}_{scenario_id}_{uuid.uuid4()}"
+    response = Response(
+        id=response_internal_id,
+        advisor_id=advisor_id,
+        scenario_id=scenario_id,
+        text=response_text,
+        submitted_at=datetime.now()
+    )
+    
+    evaluation = evaluator.evaluate_response(response)
+    
+    evaluation_cache[evaluation.id] = evaluation
+    app.logger.info(f"Stored evaluation {evaluation.id} in cache.")
+    
+    return redirect(url_for('evaluation_result', evaluation_id=evaluation.id))
+
+@app.route('/evaluation/<evaluation_id>')
+def evaluation_result(evaluation_id):
+    evaluation = evaluation_cache.get(evaluation_id)
+    
+    if not evaluation:
+        app.logger.error(f"Evaluation ID {evaluation_id} not found in cache.")
+        flash("Evaluation results not found or have expired.", "error")
+        return redirect(url_for('scenarios'))
+
+    app.logger.info(f"Retrieved evaluation {evaluation_id} from cache.")
+    return render_template('evaluation_result.html', evaluation=evaluation)
 
 if __name__ == '__main__':
     app.run(debug=True) 

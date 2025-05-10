@@ -11,6 +11,8 @@ class Evaluation:
     empathy_score: float
     positioning_score: float
     persuasion_score: float
+    clarity_confidence_score: float
+    tone_professionalism_score: float
     overall_score: float
     strengths: List[str]
     areas_for_improvement: List[str]
@@ -18,6 +20,9 @@ class Evaluation:
     response_id: Optional[str] = None
     created_at: Optional[datetime] = None
     id: str = None
+    personalization_score: Optional[float] = None
+    context_relevance_score: Optional[float] = None
+    coherence_score: Optional[float] = None
     
     def __post_init__(self):
         if self.id is None:

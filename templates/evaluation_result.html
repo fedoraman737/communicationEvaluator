@@ -22,10 +22,37 @@
                         <div>Positioning</div>
                     </div>
                     <div class="text-center">
-                        <div class="display-6">{{ evaluation.persuasion_score }}</div>
-                        <div>Persuasion</div>
+                        <div class="display-6">{{ evaluation.clarity_confidence_score }}</div>
+                        <div>Clarity</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="display-6">{{ evaluation.tone_professionalism_score }}</div>
+                        <div>Tone</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="display-6">{{ evaluation.coherence_score }}</div>
+                        <div>Coherence</div>
                     </div>
                 </div>
+                
+                <!-- Show optional scores if available -->
+                {% if evaluation.personalization_score or evaluation.context_relevance_score %}
+                <div class="d-flex justify-content-center mb-4">
+                    {% if evaluation.personalization_score %}
+                    <div class="text-center mx-3">
+                        <div class="display-6">{{ evaluation.personalization_score }}</div>
+                        <div>Personalization</div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if evaluation.context_relevance_score %}
+                    <div class="text-center mx-3">
+                        <div class="display-6">{{ evaluation.context_relevance_score }}</div>
+                        <div>Contextual Relevance</div>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
                 
                 <div class="progress mb-2" style="height: 5px;">
                     <div class="progress-bar" role="progressbar" style="width: {{ evaluation.overall_score * 10 }}%"></div>
